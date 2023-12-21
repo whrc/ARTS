@@ -22,6 +22,6 @@ The Arctic Retrogressive Thaw Slumps Data Set
 
 
 ## Installation
-'''
+```
 pip install git+https://github.com/whrc/ARTS.git
-'''
+```
