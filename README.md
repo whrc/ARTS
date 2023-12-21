@@ -19,3 +19,9 @@ The Arctic Retrogressive Thaw Slumps Data Set
 | StabilizedRTS     | String                           | auto-generated | UIDs of intersecting stabilized RTS scars                                                                                  |
 | ContributionDate  | String                           | auto-generated | Date of contribution to the ARTS main file in YYYY-MM-DD                                                                   |
 | UID               | 36-character alphanumeric string | auto-generated | Unique identifier generated using uuid5 by concatenating all 'Required-True' fields as a single string                   |
+
+
+## Installation
+'''
+pip install git+https://github.com/whrc/ARTS.git
+'''
