@@ -170,4 +170,113 @@ def run_formatting_checks(df):
     print('Formatting looks good!')
     
     
-    
+def preprocessing():
+    global your_rts_dataset_dir, required_fields, optional_fields, new_fields
+    new_data = gpd.read_file(your_rts_dataset_dir)
+    new_data_filepath = your_rts_dataset_dir
+
+    if new_data.crs != 'EPSG:3413':
+        new_data = new_data.to_crs('EPSG:3413')
+
+    if calculate_centroid:
+        if re.search('\\.shp', str(new_data_filepath)):
+            new_data = new_data.drop(['CntrdLt', 'CntrdLn'], axis = 1)
+            
+        new_data["CentroidLat"] = new_data.to_crs(4326).centroid.y
+        new_data["CentroidLon"] = new_data.to_crs(4326).centroid.x
+
+    if re.search('\\.geojson', str(new_data_filepath)):
+        new_data = (
+            new_data    
+            .filter(items = required_fields + optional_fields + new_fields + ['geometry'])
+            )
+    elif re.search('\\.shp', str(new_data_filepath)):
+        new_data = (
+            new_data    
+            .rename(columns = dict(
+                {key:value for key, value 
+                    in zip(
+                        ['CntrdLt', 'CntrdLn', 'ReginNm', 'CretrLb', 'BasMpDt', 'BsMpSrc', 'BsMpRsl', 'TrnClss'], 
+                        [item for item in required_fields if item not in ['MergedRTS', 'StabilizedRTS', 'UID', 'ContributionDate']]
+                    )},
+                    **{key:value for key, value 
+                    in zip(
+                        ['StblRTS', 'MrgdRTS', 'Area'], 
+                        [item for item in optional_fields if item not in ['MergedRTS', 'StabilizedRTS', 'UID', 'ContributionDate']],
+                    )},
+                    **{key:value for key, value 
+                in zip(
+                    new_fields_abbreviated, 
+                    new_fields)}
+                )
+                    )
+            .filter(items = required_fields + optional_fields + new_fields + ['geometry'])
+            )
+
+    for field in [item for item in required_fields if item not in ['MergedRTS', 'StabilizedRTS', 'UID', 'ContributionDate']]: # Check if all required columns are present
+        if field not in new_data.columns:
+            raise ValueError('{field} is missing. Ensure that all required fields (except UID) are present prior to running this script'
+                            .format(field = repr(field)))
+
+    for field in [item for item in new_fields]: # Check if all new columns are present
+        if field not in new_data.columns:
+            raise ValueError('{field} is missing. Did you specify the name of the new metadata field correctly?'.format(field = repr(field)))
+
+    return new_data
+
+
+
+
+from os.path import dirname
+
+def check_intersections():
+  global processed_data, your_rts_dataset_dir
+  new_data = processed_data
+  new_data_file = os.path.basename(your_rts_dataset_dir)
+
+  intersections = []
+  for idx in range(0,new_data.shape[0]):
+      new_intersections = get_intersecting_uids(new_data.iloc[[idx]], ARTS_main_dataset)
+      intersections = intersections + new_intersections
+      
+  new_data['Intersections'] = intersections
+
+  adjacent_polys = []
+  for idx in range(0,new_data.shape[0]):
+      new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], ARTS_main_dataset)
+      adjacent_polys = adjacent_polys + new_adjacent_polys
+      
+  new_data['AdjacentPolys'] = adjacent_polys
+
+  new_data.Intersections = remove_adjacent_polys(new_data.Intersections, new_data.AdjacentPolys)
+  new_data.drop('AdjacentPolys', axis=1)
+
+  overlapping_data = new_data.copy()
+  overlapping_data = overlapping_data[overlapping_data.Intersections.str.len() > 0]
+  overlapping_data
+
+  if overlapping_data.shape[0] > 0:
+      if 'RepeatRTS' not in list(overlapping_data.columns.values):
+          overlapping_data['RepeatRTS'] = ['']*overlapping_data.shape[0]
+      if 'MergedRTS' not in list(overlapping_data.columns.values):
+          overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
+      if 'StabilizedRTS' not in list(overlapping_data.columns.values):
+          overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
+
+      overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
+
+      print(overlapping_data)
+
+      overlapping_data.to_file(
+          os.path.join(dirname(your_rts_dataset_dir) + "_overlapping_polygons.geojson")
+          )
+      
+
+      print(
+          'Overlapping polygons have been saved to ' + 
+          os.path.join(dirname(your_rts_dataset_dir) + "_overlapping_polygons.geojson")
+          )
+
+  else:
+      print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
+  return
