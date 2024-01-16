@@ -227,49 +227,51 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
 
 
 def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset):
-  new_data = processed_data
-  savedir = os.path.join(dirname(your_rts_dataset_dir),
-             'python_output',
-             os.path.basename(your_rts_dataset_dir).split('.')[0]+'_overlapping_polygons.geojson')
-     
+    new_data = processed_data
+    savedir = os.path.join(dirname(your_rts_dataset_dir),
+                'python_output',
+                os.path.basename(your_rts_dataset_dir).split('.')[0]+'_overlapping_polygons.geojson')
+    # Create a new directory because it does not exist
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)  
 
-  intersections = []
-  for idx in range(0,new_data.shape[0]):
-      new_intersections = get_intersecting_uids(new_data.iloc[[idx]], ARTS_main_dataset)
-      intersections = intersections + new_intersections
-      
-  new_data['Intersections'] = intersections
+    intersections = []
+    for idx in range(0,new_data.shape[0]):
+        new_intersections = get_intersecting_uids(new_data.iloc[[idx]], ARTS_main_dataset)
+        intersections = intersections + new_intersections
+        
+    new_data['Intersections'] = intersections
 
-  adjacent_polys = []
-  for idx in range(0,new_data.shape[0]):
-      new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], ARTS_main_dataset)
-      adjacent_polys = adjacent_polys + new_adjacent_polys
-      
-  new_data['AdjacentPolys'] = adjacent_polys
+    adjacent_polys = []
+    for idx in range(0,new_data.shape[0]):
+        new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], ARTS_main_dataset)
+        adjacent_polys = adjacent_polys + new_adjacent_polys
+        
+    new_data['AdjacentPolys'] = adjacent_polys
 
-  new_data.Intersections = remove_adjacent_polys(new_data.Intersections, new_data.AdjacentPolys)
-  new_data.drop('AdjacentPolys', axis=1)
+    new_data.Intersections = remove_adjacent_polys(new_data.Intersections, new_data.AdjacentPolys)
+    new_data.drop('AdjacentPolys', axis=1)
 
-  overlapping_data = new_data.copy()
-  overlapping_data = overlapping_data[overlapping_data.Intersections.str.len() > 0]
-  overlapping_data
+    overlapping_data = new_data.copy()
+    overlapping_data = overlapping_data[overlapping_data.Intersections.str.len() > 0]
+    overlapping_data
 
-  if overlapping_data.shape[0] > 0:
-      if 'RepeatRTS' not in list(overlapping_data.columns.values):
-          overlapping_data['RepeatRTS'] = ['']*overlapping_data.shape[0]
-      if 'MergedRTS' not in list(overlapping_data.columns.values):
-          overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
-      if 'StabilizedRTS' not in list(overlapping_data.columns.values):
-          overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
+    if overlapping_data.shape[0] > 0:
+        if 'RepeatRTS' not in list(overlapping_data.columns.values):
+            overlapping_data['RepeatRTS'] = ['']*overlapping_data.shape[0]
+        if 'MergedRTS' not in list(overlapping_data.columns.values):
+            overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
+        if 'StabilizedRTS' not in list(overlapping_data.columns.values):
+            overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
 
-      overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
+        overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
 
-      print(overlapping_data)
+        print(overlapping_data)
 
-      overlapping_data.to_file(savedir)
-          
-      print('Overlapping polygons have been saved to ' + savedir)
+        overlapping_data.to_file(savedir)
+            
+        print('Overlapping polygons have been saved to ' + savedir)
 
-  else:
-      print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
-  return
+    else:
+        print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
+    return
