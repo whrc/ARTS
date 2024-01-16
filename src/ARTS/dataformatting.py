@@ -1,6 +1,3 @@
-import numpy as np
-import pandas as pd
-import geopandas as gpd
 import uuid
 import numpy as np
 import pandas as pd
@@ -9,7 +6,8 @@ import warnings
 import re
 from datetime import datetime
 from pathlib import Path
-
+import os
+from os.path import dirname
 
 # add_empty_columns
 def add_empty_columns(df, column_names):
@@ -227,11 +225,13 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
 
 
 
-from os.path import dirname
 
-def check_intersections(processed_data, your_rts_dataset_dir):
+def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset):
   new_data = processed_data
-  new_data_file = os.path.basename(your_rts_dataset_dir)
+  savedir = os.path.join(dirname(your_rts_dataset_dir),
+             'python_output',
+             os.path.basename(your_rts_dataset_dir).split('.')[0]+'_overlapping_polygons.geojson')
+     
 
   intersections = []
   for idx in range(0,new_data.shape[0]):
@@ -266,15 +266,9 @@ def check_intersections(processed_data, your_rts_dataset_dir):
 
       print(overlapping_data)
 
-      overlapping_data.to_file(
-          os.path.join(dirname(your_rts_dataset_dir) + "//output_overlapping_polygons.geojson")
-          )
-      
-
-      print(
-          'Overlapping polygons have been saved to ' + 
-          os.path.join(dirname(your_rts_dataset_dir) + "//_overlapping_polygons.geojson")
-          )
+      overlapping_data.to_file(savedir)
+          
+      print('Overlapping polygons have been saved to ' + savedir)
 
   else:
       print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
