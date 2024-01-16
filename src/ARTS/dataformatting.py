@@ -254,7 +254,6 @@ def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset)
 
     overlapping_data = new_data.copy()
     overlapping_data = overlapping_data[overlapping_data.Intersections.str.len() > 0]
-    overlapping_data
 
     if overlapping_data.shape[0] > 0:
         if 'RepeatRTS' not in list(overlapping_data.columns.values):
@@ -268,7 +267,7 @@ def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset)
 
         print(overlapping_data)
 
-        overlapping_data.to_file(savedir)
+        overlapping_data.to_file(savedir, driver='GeoJSON')
             
         print('Overlapping polygons have been saved to ' + savedir)
 
