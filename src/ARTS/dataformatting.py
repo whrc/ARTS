@@ -228,12 +228,6 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
 
 def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset):
     new_data = processed_data
-    savedir = os.path.join(dirname(your_rts_dataset_dir),
-                'python_output',
-                os.path.basename(your_rts_dataset_dir).split('.')[0]+'_overlapping_polygons.geojson')
-    # Create a new directory because it does not exist
-    if not os.path.exists(savedir):
-        os.makedirs(savedir)  
 
     intersections = []
     for idx in range(0,new_data.shape[0]):
@@ -267,10 +261,10 @@ def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset)
 
         print(overlapping_data)
 
-        overlapping_data.to_file(savedir, driver='GeoJSON')
-            
-        print('Overlapping polygons have been saved to ' + savedir)
+        with open('overlapping_polygons.geojson', 'w') as f: # provide your path here
+          f.write(overlapping_data.to_json())
 
     else:
         print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
     return
+
