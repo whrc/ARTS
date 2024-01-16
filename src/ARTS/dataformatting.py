@@ -170,8 +170,8 @@ def run_formatting_checks(df):
     print('Formatting looks good!')
     
     
-def preprocessing():
-    global your_rts_dataset_dir, required_fields, optional_fields, new_fields
+def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fields, calculate_centroid):
+    
     new_data = gpd.read_file(your_rts_dataset_dir)
     new_data_filepath = your_rts_dataset_dir
 
@@ -206,7 +206,7 @@ def preprocessing():
                     )},
                     **{key:value for key, value 
                 in zip(
-                    new_fields_abbreviated, 
+                    new_fields_abbreviated,   # Heidi : this is not defined, please fix
                     new_fields)}
                 )
                     )
@@ -229,8 +229,7 @@ def preprocessing():
 
 from os.path import dirname
 
-def check_intersections():
-  global processed_data, your_rts_dataset_dir
+def check_intersections(processed_data, your_rts_dataset_dir):
   new_data = processed_data
   new_data_file = os.path.basename(your_rts_dataset_dir)
 
@@ -268,13 +267,13 @@ def check_intersections():
       print(overlapping_data)
 
       overlapping_data.to_file(
-          os.path.join(dirname(your_rts_dataset_dir) + "_overlapping_polygons.geojson")
+          os.path.join(dirname(your_rts_dataset_dir) + "//output_overlapping_polygons.geojson")
           )
       
 
       print(
           'Overlapping polygons have been saved to ' + 
-          os.path.join(dirname(your_rts_dataset_dir) + "_overlapping_polygons.geojson")
+          os.path.join(dirname(your_rts_dataset_dir) + "//_overlapping_polygons.geojson")
           )
 
   else:
