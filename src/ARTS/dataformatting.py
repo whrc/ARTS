@@ -268,3 +268,44 @@ def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset)
         print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
     return
 
+
+def merge_data(edited_file_path,processed_data):
+    edited_file = Path(edited_file_path)
+    if Path.exists(edited_file):
+        overlapping_data = (
+            gpd.read_file(edited_file)
+            .filter(items = ['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
+            )
+
+        merged_data = pd.merge(processed_data,
+                            overlapping_data,
+                            how = 'outer',
+                            on = ['UID', 'Intersections'])
+
+        merged_data.loc[~merged_data.RepeatRTS.isnull(), 'UID'] = merged_data.RepeatRTS[~merged_data.RepeatRTS.isnull()]
+
+    else:
+        merged_data['RepeatRTS'] = ['']*processed_data.shape[0]
+        merged_data['MergedRTS'] = ['']*processed_data.shape[0]
+        merged_data['StabilizedRTS'] = ['']*processed_data.shape[0]
+        merged_data['AccidentalOverlap'] = ['']*processed_data.shape[0]
+
+        warnings.warn("No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
+    return merged_data
+
+def seed_gen(gpd):
+    gpd['seed'] = (gpd[[
+                        'CentroidLat',
+                        'CentroidLon',
+                        'RegionName',
+                        'CreatorLab',
+                        'BaseMapDate',
+                        'BaseMapSource',
+                        'BaseMapResolutionStr',
+                        'TrainClass',
+                        'LabelType'
+                    ]].apply(
+                        lambda row: ''.join(row.values.astype(str)),
+                        axis = 1
+                    ))
+    return gpd
