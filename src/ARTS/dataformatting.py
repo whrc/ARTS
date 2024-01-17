@@ -226,7 +226,7 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
 
 
 
-def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset):
+def check_intersections(processed_data, ARTS_main_dataset):
     new_data = processed_data
 
     intersections = []
@@ -269,38 +269,38 @@ def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset)
     return
 
 
-def merge_data(processed_data, edited_file_path=None, no_edited_file=True):
-    edited_file = Path(edited_file_path)
-    if Path.exists(edited_file): #if there's 
-        overlapping_data = (
-            gpd.read_file(edited_file)
-            .filter(items = ['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
-            )
+def merge_data(processed_data, edited_file_path=None):
+  if edited_file_path is not None:    
+    overlapping_data = (
+        gpd.read_file(edited_file_path)
+        .filter(items = ['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
+        )
 
-        merged_data = pd.merge(processed_data,
-                            overlapping_data,
-                            how = 'outer',
-                            on = ['UID', 'Intersections'])
+    merged_data = pd.merge(processed_data,
+                        overlapping_data,
+                        how = 'outer',
+                        on = ['UID', 'Intersections'])
 
-        merged_data.loc[~merged_data.RepeatRTS.isnull(), 'UID'] = merged_data.RepeatRTS[~merged_data.RepeatRTS.isnull()]
+    merged_data.loc[~merged_data.RepeatRTS.isnull(), 'UID'] = merged_data.RepeatRTS[~merged_data.RepeatRTS.isnull()]
 
-    elif no_edited_file:
-        merged_data = processed_data.copy()
-        merged_data['RepeatRTS'] = ['']*processed_data.shape[0]
-        merged_data['MergedRTS'] = ['']*processed_data.shape[0]
-        merged_data['StabilizedRTS'] = ['']*processed_data.shape[0]
-        merged_data['AccidentalOverlap'] = ['']*processed_data.shape[0]
+  else:
+      merged_data = processed_data.copy()
+      merged_data['RepeatRTS'] = ['']*merged_data.shape[0]
+      merged_data['MergedRTS'] = ['']*merged_data.shape[0]
+      merged_data['StabilizedRTS'] = ['']*merged_data.shape[0]
+      merged_data['AccidentalOverlap'] = ['']*merged_data.shape[0]
 
-        warnings.warn("No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
-    return merged_data
+      warnings.warn("No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
+  return merged_data
 
-def seed_gen(gpd):
-    gpd.CentroidLat = np.round(gpd.CentroidLat, 13)
-    gpd.CentroidLon = np.round(gpd.CentroidLon, 13)
-    c = gpd.BaseMapResolution == gpd.BaseMapResolution.astype(int)
-    gpd.loc[c,'BaseMapResolutionStr'] = gpd.BaseMapResolution.astype(int).astype(str)
-    gpd.loc[~c,'BaseMapResolutionStr'] = gpd.BaseMapResolution.astype(str)
-    gpd['seed'] = (gpd[[
+
+def seed_gen(dataframe):
+    dataframe.CentroidLat = np.round(dataframe.CentroidLat, 5)
+    dataframe.CentroidLon = np.round(dataframe.CentroidLon, 5)
+    c = dataframe.BaseMapResolution == dataframe.BaseMapResolution.astype(int)
+    dataframe.loc[c,'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(int).astype(str)
+    dataframe.loc[~c,'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(str)
+    dataframe['seed'] = (dataframe[[
                         'CentroidLat',
                         'CentroidLon',
                         'RegionName',
@@ -314,4 +314,4 @@ def seed_gen(gpd):
                         lambda row: ''.join(row.values.astype(str)),
                         axis = 1
                     ))
-    return gpd
+    return dataframe
