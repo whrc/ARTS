@@ -269,9 +269,9 @@ def check_intersections(processed_data, your_rts_dataset_dir, ARTS_main_dataset)
     return
 
 
-def merge_data(edited_file_path,processed_data):
+def merge_data(processed_data, edited_file_path=None, no_edited_file=True):
     edited_file = Path(edited_file_path)
-    if Path.exists(edited_file):
+    if Path.exists(edited_file): #if there's 
         overlapping_data = (
             gpd.read_file(edited_file)
             .filter(items = ['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
@@ -284,7 +284,8 @@ def merge_data(edited_file_path,processed_data):
 
         merged_data.loc[~merged_data.RepeatRTS.isnull(), 'UID'] = merged_data.RepeatRTS[~merged_data.RepeatRTS.isnull()]
 
-    else:
+    elif no_edited_file:
+        merged_data = processed_data.copy()
         merged_data['RepeatRTS'] = ['']*processed_data.shape[0]
         merged_data['MergedRTS'] = ['']*processed_data.shape[0]
         merged_data['StabilizedRTS'] = ['']*processed_data.shape[0]
@@ -294,6 +295,11 @@ def merge_data(edited_file_path,processed_data):
     return merged_data
 
 def seed_gen(gpd):
+    gpd.CentroidLat = np.round(gpd.CentroidLat, 13)
+    gpd.CentroidLon = np.round(gpd.CentroidLon, 13)
+    c = gpd.BaseMapResolution == gpd.BaseMapResolution.astype(int)
+    gpd.loc[c,'BaseMapResolutionStr'] = gpd.BaseMapResolution.astype(int).astype(str)
+    gpd.loc[~c,'BaseMapResolutionStr'] = gpd.BaseMapResolution.astype(str)
     gpd['seed'] = (gpd[[
                         'CentroidLat',
                         'CentroidLon',
