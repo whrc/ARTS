@@ -238,19 +238,19 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
 
 
 
-def check_intersections(processed_data, ARTS_main_dataset):
-    new_data = processed_data
-
+def check_intersections(new_data, new_data_file, main_data):
+    
     intersections = []
+
     for idx in range(0,new_data.shape[0]):
-        new_intersections = get_intersecting_uids(new_data.iloc[[idx]], ARTS_main_dataset)
+        new_intersections = get_intersecting_uids(new_data.iloc[[idx]], main_data)
         intersections = intersections + new_intersections
         
     new_data['Intersections'] = intersections
 
     adjacent_polys = []
     for idx in range(0,new_data.shape[0]):
-        new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], ARTS_main_dataset)
+        new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], main_data)
         adjacent_polys = adjacent_polys + new_adjacent_polys
         
     new_data['AdjacentPolys'] = adjacent_polys
@@ -273,12 +273,20 @@ def check_intersections(processed_data, ARTS_main_dataset):
 
         print(overlapping_data)
 
-        with open('overlapping_polygons.geojson', 'w') as f: # provide your path here
-          f.write(overlapping_data.to_json())
+        overlapping_data.to_file(
+            Path('..') / 'python_output' / (str(new_data_file).split('.')[0] + "_overlapping_polygons.geojson")
+            )
+
+        print(
+            'Overlapping polygons have been saved to ' + 
+            str(Path('..') / 'python_output' / (str(new_data_file).split('.')[0] + "_overlapping_polygons.geojson"))
+            )
 
     else:
         print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
-    return
+
+    return 
+
 
 
 def merge_data(processed_data, edited_file_path=None):

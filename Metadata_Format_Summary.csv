@@ -1,16 +1,16 @@
 FieldName,Format,Required,Description
-CentroidLat,Decimal Degrees,True,Polygon centroid latitude
-CentroidLon,Decimal Degrees,True,Polygon centroid longitude
+CentroidLat,Decimal Degrees,True,"Polygon centroid latitude in EPSG:4326, round off to 5 decimal places"
+CentroidLon,Decimal Degrees,True,"Polygon centroid longitude in EPSG:4326, round off to 5 decimal places"
 RegionName,String,True,Name of the geographical region
 CreatorLab,String,True,Data creator and associated organization
-ContributionDate,String,True,Date of the contribution to the ARTS main file in YYYY-MM-DD
-BaseMapDate,String,True,"YYYY-MM-DD,YYYY-MM-DD; Date of the base map used for RTS delineation, range separated by comma"
+BaseMapDate,String,True,"Date of base map used for RTS delineation in YYYY-MM-DD for a single date, range of dates should be separated by a comma"
 BaseMapSource,String,True,Name of the satellite sensor used for RTS delineation
 BaseMapResolution,Number,True,Resolution of the imagery used for RTS delineation (meters)
 TrainClass,String,True,'Positive’ for genuine RTS and ‘Negative’ for background
 LabelType,String,True,"Type of digitisation, e.g. ‘Polygon’, ‘BoundingBox’"
-MergedRTS,String,True,UIDs of intersecting RTS that merged into one RTS
-StabilizedRTS,String,True,UIDs of intersecting stabilized RTS scars
-UID,36-character alphanumeric string,True,Unique identifier generated using uuid5 by concatenating all known mandatory metadata fields as a single string
+MergedRTS,String,Generated,UIDs of intersecting RTS that merged into one RTS
+StabilizedRTS,String,Generated,UIDs of intersecting stabilized RTS scars
+ContributionDate,String,Generated,Date of the contribution to the ARTS main file in YYYY-MM-DD
+UID,36-character alphanumeric string,Generated,Unique identifier generated using uuid5 by concatenating all ‘Required-True’ fields as a single string
 BaseMapID,String,False,Image ID if a single image was used in polygon delineation
 Area,Number,False,Area of the RTS polygon (m2)
