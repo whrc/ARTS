@@ -173,16 +173,22 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
     new_data = gpd.read_file(your_rts_dataset_dir)
     new_data_filepath = your_rts_dataset_dir
 
+    # convert to EPSG:3413 if necessary
     if new_data.crs != 'EPSG:3413':
         new_data = new_data.to_crs('EPSG:3413')
 
+    # calculate centroid, if requested
     if calculate_centroid:
         if re.search('\\.shp', str(new_data_filepath)):
             new_data = new_data.drop(['CntrdLt', 'CntrdLn'], axis = 1)
-            
-        new_data["CentroidLat"] = new_data.to_crs(4326).centroid.y
-        new_data["CentroidLon"] = new_data.to_crs(4326).centroid.x
+            new_data["CntrdLt"] = new_data.to_crs(4326).centroid.y.round(5)
+            new_data["CntrdLn"] = new_data.to_crs(4326).centroid.x.round(5)
 
+        elif re.search('\\.geojson', str(new_data_filepath)):
+            new_data["CentroidLat"] = new_data.to_crs(4326).centroid.y.round(5)
+            new_data["CentroidLon"] = new_data.to_crs(4326).centroid.x.round(5)
+
+    # select correct columns
     if re.search('\\.geojson', str(new_data_filepath)):
         new_data = (
             new_data    
@@ -194,26 +200,32 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
             .rename(columns = dict(
                 {key:value for key, value 
                     in zip(
-                        ['CntrdLt', 'CntrdLn', 'ReginNm', 'CretrLb', 'BasMpDt', 'BsMpSrc', 'BsMpRsl', 'TrnClss'], 
-                        [item for item in required_fields if item not in ['MergedRTS', 'StabilizedRTS', 'UID', 'ContributionDate']]
-                    )},
-                    **{key:value for key, value 
-                    in zip(
-                        ['StblRTS', 'MrgdRTS', 'Area'], 
-                        [item for item in optional_fields if item not in ['MergedRTS', 'StabilizedRTS', 'UID', 'ContributionDate']],
-                    )},
-                    **{key:value for key, value 
+                        ['CntrdLt', 'CntrdLn', 'ReginNm', 'CretrLb', 'BasMpDt', 'BsMpSrc', 'BsMpRsl', 'TrnClss', 'LablTyp'], 
+                        required_fields
+                        )},
+                **{key:value for key, value 
                 in zip(
-                    new_fields_abbreviated,   # Heidi : this is not defined, please fix
-                    new_fields)}
+                    ['MrgdRTS', 'StblRTS', 'ContrDt', 'UID'],
+                    generated_fields,
+                    )},
+                **{key:value for key, value 
+                in zip(
+                    ['BsMpID', 'Area'], 
+                    optional_fields,
+                    )},
+                **{key:value for key, value 
+                in zip(
+                    new_fields_abbreviated, 
+                    new_fields
+                    )}
                 )
                     )
             .filter(items = required_fields + optional_fields + new_fields + ['geometry'])
             )
 
-    for field in [item for item in required_fields if item not in ['MergedRTS', 'StabilizedRTS', 'UID', 'ContributionDate']]: # Check if all required columns are present
+    for field in [item for item in required_fields]: # Check if all required columns are present
         if field not in new_data.columns:
-            raise ValueError('{field} is missing. Ensure that all required fields (except UID) are present prior to running this script'
+            raise ValueError('{field} is missing. Ensure that all required fields are present prior to running this script'
                             .format(field = repr(field)))
 
     for field in [item for item in new_fields]: # Check if all new columns are present
