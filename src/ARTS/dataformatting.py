@@ -289,29 +289,30 @@ def check_intersections(new_data, new_data_file, main_data):
 
 
 
-def merge_data(processed_data, edited_file_path=None):
-  if edited_file_path is not None:    
-    overlapping_data = (
-        gpd.read_file(edited_file_path)
-        .filter(items = ['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
-        )
+def merge_data(new_data, edited_file):
 
-    merged_data = pd.merge(processed_data,
-                        overlapping_data,
-                        how = 'outer',
-                        on = ['UID', 'Intersections'])
+    if Path.exists(Path(edited_file)):
+        overlapping_data = (
+            gpd.read_file(edited_file)
+            .filter(items = ['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
+            )
 
-    merged_data.loc[~merged_data.RepeatRTS.isnull(), 'UID'] = merged_data.RepeatRTS[~merged_data.RepeatRTS.isnull()]
+        new_data = pd.merge(new_data, 
+                            overlapping_data, 
+                            how = 'outer',
+                            on = ['UID', 'Intersections'])
 
-  else:
-      merged_data = processed_data.copy()
-      merged_data['RepeatRTS'] = ['']*merged_data.shape[0]
-      merged_data['MergedRTS'] = ['']*merged_data.shape[0]
-      merged_data['StabilizedRTS'] = ['']*merged_data.shape[0]
-      merged_data['AccidentalOverlap'] = ['']*merged_data.shape[0]
+        new_data.loc[~new_data.RepeatRTS.isnull(), 'UID'] = new_data.RepeatRTS[~new_data.RepeatRTS.isnull()]
 
-      warnings.warn("No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
-  return merged_data
+    else:
+        new_data['RepeatRTS'] = ['']*new_data.shape[0]
+        new_data['MergedRTS'] = ['']*new_data.shape[0]
+        new_data['StabilizedRTS'] = ['']*new_data.shape[0]
+        new_data['AccidentalOverlap'] = ['']*new_data.shape[0]
+        
+        warnings.warn("No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
+
+    return new_data
 
 
 def seed_gen(dataframe):
@@ -335,3 +336,32 @@ def seed_gen(dataframe):
                         axis = 1
                     ))
     return dataframe
+
+
+def self_intersection(new_data):
+    new_data["ContributionDate"] = datetime.today().strftime('%Y-%m-%d')
+
+    intersections = []
+    for idx in range(0,new_data.shape[0]):
+        new_intersections = get_intersecting_uids(new_data.iloc[[idx]], new_data.drop([idx]))
+        intersections = intersections + new_intersections
+        
+    new_data['SelfIntersectionIndices'] = intersections
+
+    adjacent_polys = []
+    for idx in range(0,new_data.shape[0]):
+        new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], new_data.drop(idx))
+        adjacent_polys = adjacent_polys + new_adjacent_polys
+        
+    new_data['AdjacentPolys'] = adjacent_polys
+
+    new_data.Intersections = remove_adjacent_polys(new_data.Intersections, new_data.AdjacentPolys)
+    new_data.drop('AdjacentPolys', axis=1)
+
+
+    new_data.loc[new_data.SelfIntersectionIndices.str.len() > 0, 'UID'] = (
+        new_data[new_data.SelfIntersectionIndices.str.len() > 0]
+        .apply(get_earliest_uid, df = new_data, axis = 1)
+    )
+
+    return new_data
