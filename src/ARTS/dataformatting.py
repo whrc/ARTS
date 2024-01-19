@@ -1,4 +1,3 @@
-import uuid
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -6,8 +5,6 @@ import warnings
 import re
 from datetime import datetime
 from pathlib import Path
-import os
-from os.path import dirname
 
 # add_empty_columns
 def add_empty_columns(df, column_names):
