@@ -6,96 +6,141 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-# add_empty_columns
+
 def add_empty_columns(df, column_names):
-  
-  for name in column_names:
-    if name not in df.columns:
-      df[name] = pd.NA
-      
-  return df
+    """
+    Adds columns to a dataframe that don't exist.
 
-# check_intersection_info
+    @param df - DataFrame to add columns to
+    @param column_names - List of column names to add to the DataFrame
+
+    @return DataFrame with columns added to it
+    """
+    for name in column_names:
+        if name not in df.columns:
+            df[name] = pd.NA
+
+    return df
+
+
 def check_intersection_info(df):
+    """
+     Check intersection information 
 
-  duplicated_uids = df['UID'].duplicated()  
-  duplicated_uids = df.loc[duplicated_uids, 'UID']
-  
-  df['int_info_complete'] = (
-    (df['Intersections'].isnull()) & (df['SelfIntersectionIndices'].str.len() == 0) |
-    (~df['Intersections'].isnull()) & (df['RepeatRTS'].notnull() | df['MergedRTS'].notnull() | df['StabilizedRTS'].notnull() | df['AccidentalOverlap'].notnull()) | 
-    (df['SelfIntersectionIndices'].str.len() > 0) & (df['UID'].isin(duplicated_uids))
-  )
-  
-  if not df['int_info_complete'].all():
-    print(df[~df['int_info_complete']])
-    raise Exception('Incomplete intersection information provided. See printed rows.')
-  
-  print('Intersection information is complete.')
+     @param df - Dataframe containing information about RTS intersections and self - intersection
+    """
 
-# get_earliest_uid
-# Return `UID` from feature with earliest `BaseMapDate` for features in `new_data` that overlap eachother.
+    duplicated_uids = df['UID'].duplicated()
+    duplicated_uids = df.loc[duplicated_uids, 'UID']
+
+    df['int_info_complete'] = (
+        (df['Intersections'].isnull()) & (df['SelfIntersectionIndices'].str.len() == 0) |
+        (~df['Intersections'].isnull()) & (df['RepeatRTS'].notnull() | df['MergedRTS'].notnull() | df['StabilizedRTS'].notnull() | df['AccidentalOverlap'].notnull()) |
+        (df['SelfIntersectionIndices'].str.len() > 0) & (
+            df['UID'].isin(duplicated_uids))
+    )
+
+    if not df['int_info_complete'].all():
+        print(df[~df['int_info_complete']])
+        raise Exception(
+            'Incomplete intersection information provided. See printed rows.')
+
+    print('Intersection information is complete.')
+
+
 def get_earliest_uid(df_subset, df):
+    '''
+    get_earliest_uid
 
-    uids = [df_subset['UID']] + [x for x in df_subset['SelfIntersectionIndices'].split(',')]
-     
+    @return `UID` from feature with earliest `BaseMapDate` for features in `new_data` that overlap eachother.
+    '''
+    uids = [df_subset['UID']] + \
+        [x for x in df_subset['SelfIntersectionIndices'].split(',')]
+
     df = df[df.UID.isin(uids)]
-    
+
     earliest_df = df[df.ContributionDate == df.ContributionDate.min()]
     earliest_df = df[df.BaseMapDate == df.BaseMapDate.min()]
-    
+
     return earliest_df.UID.iloc[0]
 
-# get_intersecting_uuids
-# this is to get the uuids of any rts polygons which touch or overlap
+
 def get_intersecting_uids(polygon, df):
-    intersections = [','.join(gpd.overlay(polygon, df, how='intersection').UID_2)]
+    '''
+    get_intersecting_uuids
+    this is to get the uuids of any rts polygons which touch or overlap
+    '''
+    intersections = [','.join(gpd.overlay(
+        polygon, df, how='intersection').UID_2)]
     return intersections
 
-# get_touching_uuids
-# this is to get the uuids of any rts polygons which touch (only the edges touch, no overlap)
+
 def get_touching_uids(polygon, df):
-    adjacent_polys = [','.join([uid for rts, uid in zip(df.geometry, df.UID) if polygon.geometry.touches(rts).reset_index()[0][0]])]
+    '''
+    get_touching_uuids
+    this is to get the uuids of any rts polygons which touch (only the edges touch, no overlap)
+    '''
+    adjacent_polys = [','.join([uid for rts, uid in zip(
+        df.geometry, df.UID) if polygon.geometry.touches(rts).reset_index()[0][0]])]
     return adjacent_polys
 
-# remove_adjacent_polys
-# this removes the uuids of any polygons which touch, but do not overlap, the current rts polygon from the adjacent_polys column
+
 def remove_adjacent_polys(intersections, adjacent_polys):
+    '''
+    remove_adjacent_polys
+    this removes the uuids of any polygons which touch, but do not overlap, the current rts polygon from the adjacent_polys column
+    '''
     intersections = [item.split(',') for item in intersections]
     adjacent_polys = [item.split(',') for item in adjacent_polys]
     fixed_intersections = []
     for idx in range(0, len(intersections)):
-        fixed_intersection = [[intersection for intersection in intersections[idx] if intersection not in adjacent_polys[idx]]]
+        fixed_intersection = [
+            [intersection for intersection in intersections[idx] if intersection not in adjacent_polys[idx]]]
         fixed_intersections = fixed_intersections + fixed_intersection
     fixed_intersections = [','.join(item) for item in fixed_intersections]
     return fixed_intersections
 
-# run_formatting_checks
+
 def check_lat(lat):
+    '''
+    Check latitude formats
+    '''
     correct_type = type(lat[0]) == np.float64
     missing_values = pd.isna(lat).values.any()
     reasonable_values = np.all(lat.between(-90, 90))
 
     if not correct_type:
-        raise ValueError('The CentroidLat column is not numeric. Ensure that latitude is reported as decimal degress in WGS 84.')
+        raise ValueError(
+            'The CentroidLat column is not numeric. Ensure that latitude is reported as decimal degress in WGS 84.')
     elif missing_values:
         raise ValueError('The CentroidLat column is missing values.')
     elif not reasonable_values:
-        raise ValueError('Unexpected values found in the CentroidLat column. Ensure that CentroidLat is listed as decimal degress in WGS 84.')
+        raise ValueError(
+            'Unexpected values found in the CentroidLat column. Ensure that CentroidLat is listed as decimal degress in WGS 84.')
+
 
 def check_lon(lon):
+    '''
+    Check longitude formats
+    '''
     correct_type = type(lon[0]) == np.float64
     missing_values = pd.isna(lon).values.any()
     reasonable_values = np.all(lon.between(-180, 180))
 
     if not correct_type:
-        raise ValueError('The CentroidLon column is not numeric. Ensure that longitude is reported as decimal degress in WGS 84.')
+        raise ValueError(
+            'The CentroidLon column is not numeric. Ensure that longitude is reported as decimal degress in WGS 84.')
     elif missing_values:
         raise ValueError('The CentroidLon column is missing values.')
     elif not reasonable_values:
-        raise ValueError('Unexpected values found in the CentroidLon column. Ensure that longitude is listed as decimal degress in WGS 84.')
+        raise ValueError(
+            'Unexpected values found in the CentroidLon column. Ensure that longitude is listed as decimal degress in WGS 84.')
+
 
 def check_region(region):
+    '''
+    Check region formats
+    '''
     correct_type = type(region[0]) == str
     missing_values = (region == '').values.any()
 
@@ -104,7 +149,12 @@ def check_region(region):
     elif missing_values:
         raise ValueError('The RegionName column is missing values.')
 
+
 def check_creator(creator):
+    '''
+    Check creator formats
+    '''
+
     correct_type = type(creator[0]) == str
     missing_values = (creator == '').values.any()
 
@@ -113,19 +163,31 @@ def check_creator(creator):
     elif missing_values:
         raise ValueError('The CreatorLab column is missing values.')
 
+
 def check_basemap_date(basemap_date):
+    '''
+    Check basemap date formats
+    '''
+
     correct_type = pd.Series([
-        type(pd.to_datetime(row)) == pd.core.indexes.datetimes.DatetimeIndex 
-         for row in basemap_date.str.split(',')
+        type(pd.to_datetime(row)) == pd.core.indexes.datetimes.DatetimeIndex
+        for row in basemap_date.str.split(',')
     ]).values.all()
-    missing_values = ((basemap_date.str.split(',', expand = True)).iloc[:, 0] == '').any()
+    missing_values = ((basemap_date.str.split(
+        ',', expand=True)).iloc[:, 0] == '').any()
 
     if not correct_type:
-        raise ValueError('The BaseMapDate column does not contain dates (or they are improperly formatted).')
+        raise ValueError(
+            'The BaseMapDate column does not contain dates (or they are improperly formatted).')
     elif missing_values:
         raise ValueError('The BaseMapDate column is missing values.')
-  
+
+
 def check_source(source):
+    '''
+    Check basemap source formats
+    '''
+
     correct_type = type(source[0]) == str
     missing_values = (source == '').values.any()
 
@@ -134,7 +196,12 @@ def check_source(source):
     elif missing_values:
         raise ValueError('The BaseMapSource column is missing values.')
 
+
 def check_resolution(resolution):
+    '''
+    Check resolution formats
+    '''
+
     correct_type = type(resolution[0]) == np.float64
     missing_values = pd.isna(resolution).values.any()
 
@@ -143,7 +210,11 @@ def check_resolution(resolution):
     elif missing_values:
         raise ValueError('The BaseMapResolution column is missing values.')
 
+
 def check_train_class(train_class):
+    '''
+    Check training class formats
+    '''
     correct_type = type(train_class[0]) == str
     missing_values = (train_class == '').values.any()
 
@@ -152,7 +223,11 @@ def check_train_class(train_class):
     elif missing_values:
         raise ValueError('The TrainClass column is missing values.')
 
+
 def run_formatting_checks(df):
+    '''
+    Check all formats
+    '''
     check_lat(df.CentroidLat)
     check_lon(df.CentroidLon)
     check_region(df.RegionName)
@@ -161,12 +236,17 @@ def run_formatting_checks(df):
     check_source(df.BaseMapSource)
     check_resolution(df.BaseMapResolution)
     check_train_class(df.TrainClass)
-    
+
     print('Formatting looks good!')
-    
-    
+
+
 def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fields, calculate_centroid):
-    
+    '''
+    read the RTS data set to be processed, calculate centroids if requested and pre-process the crs, 
+    column names
+
+    @return pre-processed geopandas dataframe
+    '''
     new_data = gpd.read_file(your_rts_dataset_dir)
     new_data_filepath = your_rts_dataset_dir
 
@@ -177,7 +257,7 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
     # calculate centroid, if requested
     if calculate_centroid:
         if re.search('\\.shp', str(new_data_filepath)):
-            new_data = new_data.drop(['CntrdLt', 'CntrdLn'], axis = 1)
+            new_data = new_data.drop(['CntrdLt', 'CntrdLn'], axis=1)
             new_data["CntrdLt"] = new_data.to_crs(4326).centroid.y.round(5)
             new_data["CntrdLn"] = new_data.to_crs(4326).centroid.x.round(5)
 
@@ -188,75 +268,80 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
     # select correct columns
     if re.search('\\.geojson', str(new_data_filepath)):
         new_data = (
-            new_data    
-            .filter(items = required_fields + optional_fields + new_fields + ['geometry'])
-            )
+            new_data
+            .filter(items=required_fields + optional_fields + new_fields + ['geometry'])
+        )
     elif re.search('\\.shp', str(new_data_filepath)):
         new_data = (
-            new_data    
-            .rename(columns = dict(
-                {key:value for key, value 
+            new_data
+            .rename(columns=dict(
+                {key: value for key, value
                     in zip(
-                        ['CntrdLt', 'CntrdLn', 'ReginNm', 'CretrLb', 'BasMpDt', 'BsMpSrc', 'BsMpRsl', 'TrnClss', 'LablTyp'], 
+                        ['CntrdLt', 'CntrdLn', 'ReginNm', 'CretrLb', 'BasMpDt',
+                            'BsMpSrc', 'BsMpRsl', 'TrnClss', 'LablTyp'],
                         required_fields
-                        )},
-                **{key:value for key, value 
-                in zip(
-                    ['MrgdRTS', 'StblRTS', 'ContrDt', 'UID'],
-                    generated_fields,
                     )},
-                **{key:value for key, value 
-                in zip(
-                    ['BsMpID', 'Area'], 
-                    optional_fields,
-                    )},
-                **{key:value for key, value 
-                in zip(
-                    new_fields_abbreviated, 
-                    new_fields
-                    )}
-                )
-                    )
-            .filter(items = required_fields + optional_fields + new_fields + ['geometry'])
+                **{key: value for key, value
+                   in zip(
+                       ['MrgdRTS', 'StblRTS', 'ContrDt', 'UID'],
+                       generated_fields,
+                   )},
+                **{key: value for key, value
+                   in zip(
+                       ['BsMpID', 'Area'],
+                       optional_fields,
+                   )},
+                **{key: value for key, value
+                   in zip(
+                       new_fields_abbreviated,
+                       new_fields
+                   )}
             )
+            )
+            .filter(items=required_fields + optional_fields + new_fields + ['geometry'])
+        )
 
-    for field in [item for item in required_fields]: # Check if all required columns are present
+    # Check if all required columns are present
+    for field in [item for item in required_fields]:
         if field not in new_data.columns:
             raise ValueError('{field} is missing. Ensure that all required fields are present prior to running this script'
-                            .format(field = repr(field)))
+                             .format(field=repr(field)))
 
-    for field in [item for item in new_fields]: # Check if all new columns are present
+    for field in [item for item in new_fields]:  # Check if all new columns are present
         if field not in new_data.columns:
-            raise ValueError('{field} is missing. Did you specify the name of the new metadata field correctly?'.format(field = repr(field)))
+            raise ValueError(
+                '{field} is missing. Did you specify the name of the new metadata field correctly?'.format(field=repr(field)))
 
     return new_data
 
 
-
-
-
 def check_intersections(new_data, new_data_file, main_data):
-    
+    '''
+    Check intersections between data to be submitted and the main data set
+    '''
     intersections = []
 
-    for idx in range(0,new_data.shape[0]):
-        new_intersections = get_intersecting_uids(new_data.iloc[[idx]], main_data)
+    for idx in range(0, new_data.shape[0]):
+        new_intersections = get_intersecting_uids(
+            new_data.iloc[[idx]], main_data)
         intersections = intersections + new_intersections
-        
+
     new_data['Intersections'] = intersections
 
     adjacent_polys = []
-    for idx in range(0,new_data.shape[0]):
+    for idx in range(0, new_data.shape[0]):
         new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], main_data)
         adjacent_polys = adjacent_polys + new_adjacent_polys
-        
+
     new_data['AdjacentPolys'] = adjacent_polys
 
-    new_data.Intersections = remove_adjacent_polys(new_data.Intersections, new_data.AdjacentPolys)
+    new_data.Intersections = remove_adjacent_polys(
+        new_data.Intersections, new_data.AdjacentPolys)
     new_data.drop('AdjacentPolys', axis=1)
 
     overlapping_data = new_data.copy()
-    overlapping_data = overlapping_data[overlapping_data.Intersections.str.len() > 0]
+    overlapping_data = overlapping_data[overlapping_data.Intersections.str.len(
+    ) > 0]
 
     if overlapping_data.shape[0] > 0:
         if 'RepeatRTS' not in list(overlapping_data.columns.values):
@@ -271,116 +356,140 @@ def check_intersections(new_data, new_data_file, main_data):
         print(overlapping_data)
 
         overlapping_data.to_file(
-            Path('..') / 'python_output' / (str(new_data_file).split('.')[0] + "_overlapping_polygons.geojson")
-            )
+            Path('..') / 'python_output' / (str(new_data_file).split('.')
+                                            [0] + "_overlapping_polygons.geojson")
+        )
 
         print(
-            'Overlapping polygons have been saved to ' + 
-            str(Path('..') / 'python_output' / (str(new_data_file).split('.')[0] + "_overlapping_polygons.geojson"))
-            )
+            'Overlapping polygons have been saved to ' +
+            str(Path('..') / 'python_output' / (str(new_data_file).split('.')
+                [0] + "_overlapping_polygons.geojson"))
+        )
 
     else:
         print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
 
-    return 
-
+    return
 
 
 def merge_data(new_data, edited_file):
-
+    '''
+    merge the data to be submitted with manually edited, intersection-checked file.
+    '''
     if Path.exists(Path(edited_file)):
         overlapping_data = (
             gpd.read_file(edited_file)
-            .filter(items = ['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
-            )
+            .filter(items=['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
+        )
 
-        new_data = pd.merge(new_data, 
-                            overlapping_data, 
-                            how = 'outer',
-                            on = ['UID', 'Intersections'])
+        new_data = pd.merge(new_data,
+                            overlapping_data,
+                            how='outer',
+                            on=['UID', 'Intersections'])
 
-        new_data.loc[~new_data.RepeatRTS.isnull(), 'UID'] = new_data.RepeatRTS[~new_data.RepeatRTS.isnull()]
+        new_data.loc[~new_data.RepeatRTS.isnull(
+        ), 'UID'] = new_data.RepeatRTS[~new_data.RepeatRTS.isnull()]
 
     else:
         new_data['RepeatRTS'] = ['']*new_data.shape[0]
         new_data['MergedRTS'] = ['']*new_data.shape[0]
         new_data['StabilizedRTS'] = ['']*new_data.shape[0]
         new_data['AccidentalOverlap'] = ['']*new_data.shape[0]
-        
-        warnings.warn("No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
+
+        warnings.warn(
+            "No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
 
     return new_data
 
 
 def seed_gen(dataframe):
+    '''
+    Generate seeds for each row in a geopandas dataframe by concantenating all fields as str
+    The seed is used for UID generation
+
+    @return New dataframe with a new column 'seed' for UID generation
+    '''
+
     dataframe.CentroidLat = np.round(dataframe.CentroidLat, 5)
     dataframe.CentroidLon = np.round(dataframe.CentroidLon, 5)
     c = dataframe.BaseMapResolution == dataframe.BaseMapResolution.astype(int)
-    dataframe.loc[c,'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(int).astype(str)
-    dataframe.loc[~c,'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(str)
+    dataframe.loc[c, 'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(
+        int).astype(str)
+    dataframe.loc[~c, 'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(
+        str)
     dataframe['seed'] = (dataframe[[
-                        'CentroidLat',
-                        'CentroidLon',
-                        'RegionName',
-                        'CreatorLab',
-                        'BaseMapDate',
-                        'BaseMapSource',
-                        'BaseMapResolutionStr',
-                        'TrainClass',
-                        'LabelType'
-                    ]].apply(
-                        lambda row: ''.join(row.values.astype(str)),
-                        axis = 1
-                    ))
+        'CentroidLat',
+        'CentroidLon',
+        'RegionName',
+        'CreatorLab',
+        'BaseMapDate',
+        'BaseMapSource',
+        'BaseMapResolutionStr',
+        'TrainClass',
+        'LabelType'
+    ]].apply(
+        lambda row: ''.join(row.values.astype(str)),
+        axis=1
+    ))
     return dataframe
 
 
 def self_intersection(new_data):
+    '''
+    Check intersection within a geopandas dataframe
+    '''
+
     new_data["ContributionDate"] = datetime.today().strftime('%Y-%m-%d')
 
     intersections = []
-    for idx in range(0,new_data.shape[0]):
-        new_intersections = get_intersecting_uids(new_data.iloc[[idx]], new_data.drop([idx]))
+    for idx in range(0, new_data.shape[0]):
+        new_intersections = get_intersecting_uids(
+            new_data.iloc[[idx]], new_data.drop([idx]))
         intersections = intersections + new_intersections
-        
+
     new_data['SelfIntersectionIndices'] = intersections
 
     adjacent_polys = []
-    for idx in range(0,new_data.shape[0]):
-        new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], new_data.drop(idx))
+    for idx in range(0, new_data.shape[0]):
+        new_adjacent_polys = get_touching_uids(
+            new_data.iloc[[idx]], new_data.drop(idx))
         adjacent_polys = adjacent_polys + new_adjacent_polys
-        
+
     new_data['AdjacentPolys'] = adjacent_polys
 
-    new_data.Intersections = remove_adjacent_polys(new_data.Intersections, new_data.AdjacentPolys)
+    new_data.Intersections = remove_adjacent_polys(
+        new_data.Intersections, new_data.AdjacentPolys)
     new_data.drop('AdjacentPolys', axis=1)
-
 
     new_data.loc[new_data.SelfIntersectionIndices.str.len() > 0, 'UID'] = (
         new_data[new_data.SelfIntersectionIndices.str.len() > 0]
-        .apply(get_earliest_uid, df = new_data, axis = 1)
+        .apply(get_earliest_uid, df=new_data, axis=1)
     )
 
     return new_data
 
 
+def output(separate_file, new_data, rts_data, optional_fields, all_fields, new_data_file, rts_file):
+    '''
+    select the desired fields and save the geopandas dataframe to file
+    '''
 
-
-
-def output(separate_file,new_data,rts_data,optional_fields,all_fields,new_data_file,rts_file):
     if separate_file:
-        new_data.to_file(Path('..') / 'python_output' / (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson"))
-        print(str(Path('..') / 'python_output' / (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson")))
+        new_data.to_file(Path('..') / 'python_output' /
+                         (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson"))
+        print(str(Path('..') / 'python_output' /
+              (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson")))
     else:
         rts_data = add_empty_columns(
-            rts_data, 
+            rts_data,
             [col for col in optional_fields]
-            )
-        rts_data.ContributionDate = [value.strftime('%Y-%m-%d') for value in rts_data.ContributionDate]
-        
+        )
+        rts_data.ContributionDate = [value.strftime(
+            '%Y-%m-%d') for value in rts_data.ContributionDate]
+
         rts_data = rts_data[all_fields + ['geometry']]
         updated_data = pd.concat([rts_data, new_data])
         updated_data.to_file(Path('..') / 'python_output' / rts_file)
         print(str(Path('..') / 'python_output' / rts_file))
-    
+
     return
