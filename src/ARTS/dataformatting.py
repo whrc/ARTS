@@ -362,3 +362,25 @@ def self_intersection(new_data):
     )
 
     return new_data
+
+
+
+
+
+def output(separate_file,new_data,rts_data,optional_fields,all_fields,new_data_file,rts_file):
+    if separate_file:
+        new_data.to_file(Path('..') / 'python_output' / (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson"))
+        print(str(Path('..') / 'python_output' / (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson")))
+    else:
+        rts_data = add_empty_columns(
+            rts_data, 
+            [col for col in optional_fields]
+            )
+        rts_data.ContributionDate = [value.strftime('%Y-%m-%d') for value in rts_data.ContributionDate]
+        
+        rts_data = rts_data[all_fields + ['geometry']]
+        updated_data = pd.concat([rts_data, new_data])
+        updated_data.to_file(Path('..') / 'python_output' / rts_file)
+        print(str(Path('..') / 'python_output' / rts_file))
+    
+    return
