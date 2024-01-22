@@ -52,6 +52,8 @@ If using R, open the project, **rts_dataset.Rproj**, in RStudio. Open **r/rts_da
 | UID               | 36-character alphanumeric string | auto-generated | Unique identifier generated using uuid5 by concatenating all 'Required-True' fields as a single string                   |
 
 
+Selected Data Examples
+![image](https://github.com/whrc/ARTS/blob/main/img/RTSfigure.jpg)
 
 
 
