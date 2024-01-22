@@ -9,7 +9,8 @@ from pathlib import Path
 
 def add_empty_columns(df, column_names):
     """
-    Adds columns to a dataframe that don't exist.
+    Adds columns filled with NA values to a dataframe.
+    This ensures that all optional metadata columns are present in the output dataset.
 
     @param df - DataFrame to add columns to
     @param column_names - List of column names to add to the DataFrame
@@ -25,9 +26,11 @@ def add_empty_columns(df, column_names):
 
 def check_intersection_info(df):
     """
-     Check intersection information 
+     Checks that intersection information has been completed for every polygon.
+     If there is an intersection reported in any row and the UID of that intersection has not been placed
+     into one of "RepeatRTS", "MergedRTS", "StabilizedRTS", or "AccidentalOverlap", the test fails.
 
-     @param df - Dataframe containing information about RTS intersections and self - intersection
+     @param df - Dataframe containing information about RTS intersections and self - intersections.
     """
 
     duplicated_uids = df['UID'].duplicated()
@@ -41,54 +44,73 @@ def check_intersection_info(df):
     )
 
     if not df['int_info_complete'].all():
-        print(df[~df['int_info_complete']])
+        print(df[~main_data['int_info_complete']])
         raise Exception(
             'Incomplete intersection information provided. See printed rows.')
 
     print('Intersection information is complete.')
 
 
-def get_earliest_uid(df_subset, df):
+def get_earliest_uid(polygon, main_data):
     '''
     get_earliest_uid
+    Gets the UID of the first version of an RTS which was contributed to the dataset. If there are multiple versions of the same RTS within the same contribution, the feature with the earliest base map date is used.
 
-    @return `UID` from feature with earliest `BaseMapDate` for features in `new_data` that overlap eachother.
+    @param polygon - A geodataframe with a single RTS feature.
+    @param main_data - The main ARTS data set.
+
+    @return `UID` from feature with earliest `ContributionDate` and `BaseMapDate` for features in `new_data` that overlap eachother.
     '''
-    uids = [df_subset['UID']] + \
-        [x for x in df_subset['SelfIntersectionIndices'].split(',')]
+    uids = [polygon['UID']] + \
+        [x for x in polygon['SelfIntersectionIndices'].split(',')]
 
-    df = df[df.UID.isin(uids)]
+    main_data = main_data[main_data.UID.isin(uids)]
 
-    earliest_df = df[df.ContributionDate == df.ContributionDate.min()]
-    earliest_df = df[df.BaseMapDate == df.BaseMapDate.min()]
+    earliest = main_data[main_data.ContributionDate == main_data.ContributionDate.min()]
+    earliest = earliest[main_data.BaseMapDate == main_data.BaseMapDate.min()]
 
-    return earliest_df.UID.iloc[0]
+    return earliest.UID.iloc[0]
 
 
-def get_intersecting_uids(polygon, df):
+def get_intersecting_uids(polygon, main_data):
     '''
     get_intersecting_uuids
-    this is to get the uuids of any rts polygons which touch or overlap
+    Gets the UIDs of any RTS polygons which overlap or touch.
+
+    @param polygon - A geodataframe with a single RTS feature.
+    @param main_data - The main ARTS data set.
+
+    @return `UID` of overlapping or touching RTS.
     '''
     intersections = [','.join(gpd.overlay(
-        polygon, df, how='intersection').UID_2)]
+        polygon, main_data, how='intersection').UID_2)]
     return intersections
 
 
-def get_touching_uids(polygon, df):
+def get_touching_uids(polygon, main_data):
     '''
     get_touching_uuids
-    this is to get the uuids of any rts polygons which touch (only the edges touch, no overlap)
+    Gets the UIDs of any rts polygons which touch (only the edges touch, no overlap)
+
+    @param polygon - A geodataframe with a single RTS feature.
+    @param main_data - The main ARTS data set.
+
+    @return `UID` of touching RTS.
     '''
     adjacent_polys = [','.join([uid for rts, uid in zip(
-        df.geometry, df.UID) if polygon.geometry.touches(rts).reset_index()[0][0]])]
+        main_data.geometry, main_data.UID) if polygon.geometry.touches(rts).reset_index()[0][0]])]
     return adjacent_polys
 
 
 def remove_adjacent_polys(intersections, adjacent_polys):
     '''
     remove_adjacent_polys
-    this removes the uuids of any polygons which touch, but do not overlap, the current rts polygon from the adjacent_polys column
+    Removes the UIDs from the adjacent_polys column of any polygons which touch, but do not overlap, the current rts polygon.
+
+    @param intersections - The column of the new data which contains UIDs of intersecting RTS.
+    @param adjacent_polys - The column of the new data which contains UIDs of adjacent RTS.
+
+    @return `UID` of overlapping (but not touching) RTS.
     '''
     intersections = [item.split(',') for item in intersections]
     adjacent_polys = [item.split(',') for item in adjacent_polys]
@@ -103,7 +125,9 @@ def remove_adjacent_polys(intersections, adjacent_polys):
 
 def check_lat(lat):
     '''
-    Check latitude formats
+    Checks that latitude values are floats, are not missing, and are between -90 and 90.
+
+    @param lat - The column which contains centroid latitudes.
     '''
     correct_type = type(lat[0]) == np.float64
     missing_values = pd.isna(lat).values.any()
@@ -121,7 +145,9 @@ def check_lat(lat):
 
 def check_lon(lon):
     '''
-    Check longitude formats
+    Checks that longitude values are floats, are not missing, and are between -180 and 180.
+    
+    @param lon - The column which contains centroid longitudes.
     '''
     correct_type = type(lon[0]) == np.float64
     missing_values = pd.isna(lon).values.any()
@@ -139,7 +165,9 @@ def check_lon(lon):
 
 def check_region(region):
     '''
-    Check region formats
+    Checks that a region has been supplied as a string.
+
+    @param region - The column that contains the region name.
     '''
     correct_type = type(region[0]) == str
     missing_values = (region == '').values.any()
@@ -152,7 +180,9 @@ def check_region(region):
 
 def check_creator(creator):
     '''
-    Check creator formats
+    Checks that a creator has been supplied as a string.
+
+    @param creator - The column that contains the creator lab.
     '''
 
     correct_type = type(creator[0]) == str
@@ -166,7 +196,9 @@ def check_creator(creator):
 
 def check_basemap_date(basemap_date):
     '''
-    Check basemap date formats
+    Checks that basemap date formats are a string composed of one or two dates separated by a comma.
+
+    @param basemap_date - The column that contains the base map date.
     '''
 
     correct_type = pd.Series([
@@ -185,7 +217,9 @@ def check_basemap_date(basemap_date):
 
 def check_source(source):
     '''
-    Check basemap source formats
+    Checks that basemap source has been provided as a string.
+
+    @param source - The column that contains the base map source.
     '''
 
     correct_type = type(source[0]) == str
@@ -199,7 +233,9 @@ def check_source(source):
 
 def check_resolution(resolution):
     '''
-    Check resolution formats
+    Checks that resolution has been provided as a float.
+
+    @param resolution - The column that contains the base map resolution.
     '''
 
     correct_type = type(resolution[0]) == np.float64
@@ -213,7 +249,9 @@ def check_resolution(resolution):
 
 def check_train_class(train_class):
     '''
-    Check training class formats
+    Checks that training class has been provided as a string.
+
+    @param train_class - The column that contains the training class.
     '''
     correct_type = type(train_class[0]) == str
     missing_values = (train_class == '').values.any()
@@ -224,9 +262,24 @@ def check_train_class(train_class):
         raise ValueError('The TrainClass column is missing values.')
 
 
+def check_label_type(label_type):
+    '''
+    Checks that label type has been provided as a string.
+    '''
+    correct_type = type(label_type[0]) == str
+    missing_values = (label_type == '').values.any()
+
+    if not correct_type:
+        raise ValueError('The LabelType column is not a string.')
+    elif missing_values:
+        raise ValueError('The LabelType column is missing values.')
+
+
 def run_formatting_checks(df):
     '''
-    Check all formats
+    Checks the format of the metadata columns.
+
+    @param df - The new data set.
     '''
     check_lat(df.CentroidLat)
     check_lon(df.CentroidLon)
@@ -236,19 +289,24 @@ def run_formatting_checks(df):
     check_source(df.BaseMapSource)
     check_resolution(df.BaseMapResolution)
     check_train_class(df.TrainClass)
+    check_label_type(df.LabelType)
 
     print('Formatting looks good!')
 
 
-def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fields, calculate_centroid):
+def preprocessing(new_data_filepath, required_fields, generated_fields, optional_fields, new_fields, calculate_centroid):
     '''
-    read the RTS data set to be processed, calculate centroids if requested and pre-process the crs, 
-    column names
+    Reads the RTS data set to be processed, ensures it is in the correct CRS, calculates centroids if requested, filters the columns and checks that all required columns are present.
+
+    @param new_data_filepath - The file path of the new data that needs to be formatted.
+    @param required_fields - A list of required metadata columns.
+    @param generated_fields - A list of metadata columns that will be created during file formatting.
+    @param new_fields - A list of new metadata columns in the new data that should be published in the ARTS data set but have never been included before.
+    @param calculate_centroid - Boolean. Should the centroid of each RTS be calculated?
 
     @return pre-processed geopandas dataframe
     '''
-    new_data = gpd.read_file(your_rts_dataset_dir)
-    new_data_filepath = your_rts_dataset_dir
+    new_data = gpd.read_file(new_data_filepath)
 
     # convert to EPSG:3413 if necessary
     if new_data.crs != 'EPSG:3413':
@@ -269,7 +327,7 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
     if re.search('\\.geojson', str(new_data_filepath)):
         new_data = (
             new_data
-            .filter(items=required_fields + optional_fields + new_fields + ['geometry'])
+            .filter(items=required_fields + generated_fields + optional_fields + new_fields + ['geometry'])
         )
     elif re.search('\\.shp', str(new_data_filepath)):
         new_data = (
@@ -315,9 +373,16 @@ def preprocessing(your_rts_dataset_dir, required_fields, optional_fields, new_fi
     return new_data
 
 
-def check_intersections(new_data, new_data_file, main_data):
+def check_intersections(new_data, main_data, out_path, demo):
     '''
-    Check intersections between data to be submitted and the main data set
+    Check intersections between data to be submitted and the main data set.
+
+    @param new_data - The new RTS data set.
+    @param main_data - The main RTS data set.
+    @param out_path - The file path where you would like to save the intersecting polygon data set.
+    @param demo - Boolean. Are you running this script as a demo? 
+
+    @return geopandas dataframe with intersecting features
     '''
     intersections = []
 
@@ -355,26 +420,30 @@ def check_intersections(new_data, new_data_file, main_data):
 
         print(overlapping_data)
 
-        overlapping_data.to_file(
-            Path('..') / 'python_output' / (str(new_data_file).split('.')
-                                            [0] + "_overlapping_polygons.geojson")
-        )
-
-        print(
-            'Overlapping polygons have been saved to ' +
-            str(Path('..') / 'python_output' / (str(new_data_file).split('.')
-                [0] + "_overlapping_polygons.geojson"))
-        )
+        if demo == False:
+            overlapping_data.to_file(
+                out_path
+            )
+    
+            print(
+                'Overlapping polygons have been saved to ' +
+                str(out_path)
+            )
 
     else:
         print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
 
-    return
+    return overlapping_data
 
 
 def merge_data(new_data, edited_file):
     '''
     merge the data to be submitted with manually edited, intersection-checked file.
+
+    @param new_data - The new data set.
+    @param edited_file - The manually edited file with intersection information.
+
+    @return new data with edited columns appended
     '''
     if Path.exists(Path(edited_file)):
         overlapping_data = (
@@ -402,22 +471,24 @@ def merge_data(new_data, edited_file):
     return new_data
 
 
-def seed_gen(dataframe):
+def seed_gen(new_data):
     '''
-    Generate seeds for each row in a geopandas dataframe by concantenating all fields as str
+    Generate seeds for each row in a geopandas dataframe by concantenating all required fields as str
     The seed is used for UID generation
+
+    @param new_data - The new RTS data set.
 
     @return New dataframe with a new column 'seed' for UID generation
     '''
 
-    dataframe.CentroidLat = np.round(dataframe.CentroidLat, 5)
-    dataframe.CentroidLon = np.round(dataframe.CentroidLon, 5)
-    c = dataframe.BaseMapResolution == dataframe.BaseMapResolution.astype(int)
-    dataframe.loc[c, 'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(
+    new_data.CentroidLat = np.round(new_data.CentroidLat, 5)
+    new_data.CentroidLon = np.round(new_data.CentroidLon, 5)
+    c = new_data.BaseMapResolution == new_data.BaseMapResolution.astype(int)
+    new_data.loc[c, 'BaseMapResolutionStr'] = new_data.BaseMapResolution.astype(
         int).astype(str)
-    dataframe.loc[~c, 'BaseMapResolutionStr'] = dataframe.BaseMapResolution.astype(
+    new_data.loc[~c, 'BaseMapResolutionStr'] = new_data.BaseMapResolution.astype(
         str)
-    dataframe['seed'] = (dataframe[[
+    new_data['seed'] = (new_data[[
         'CentroidLat',
         'CentroidLon',
         'RegionName',
@@ -431,12 +502,16 @@ def seed_gen(dataframe):
         lambda row: ''.join(row.values.astype(str)),
         axis=1
     ))
-    return dataframe
+    return new_data
 
 
 def self_intersection(new_data):
     '''
     Check intersection within a geopandas dataframe
+
+    @param new_data - The new RTS data set.
+
+    @return a dataframe with a column for self-intersections added
     '''
 
     new_data["ContributionDate"] = datetime.today().strftime('%Y-%m-%d')
@@ -463,33 +538,47 @@ def self_intersection(new_data):
 
     new_data.loc[new_data.SelfIntersectionIndices.str.len() > 0, 'UID'] = (
         new_data[new_data.SelfIntersectionIndices.str.len() > 0]
-        .apply(get_earliest_uid, df=new_data, axis=1)
+        .apply(get_earliest_uid, main_data=new_data, axis=1)
     )
 
     return new_data
 
 
-def output(separate_file, new_data, rts_data, optional_fields, all_fields, new_data_file, rts_file):
+def output(new_data, main_data, optional_fields, all_fields, base_dir, new_data_file, main_filepath, separate_file, demo):
     '''
     select the desired fields and save the geopandas dataframe to file
-    '''
 
-    if separate_file:
-        new_data.to_file(Path('..') / 'python_output' /
-                         (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson"))
-        print(str(Path('..') / 'python_output' /
-              (str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson")))
-    else:
-        rts_data = add_empty_columns(
-            rts_data,
-            [col for col in optional_fields]
-        )
-        rts_data.ContributionDate = [value.strftime(
-            '%Y-%m-%d') for value in rts_data.ContributionDate]
+    @param new_data - The new RTS data set.
+    @param main_data - The main ARTS data set.
+    @param optional_fields - A list of optional metadata fields.
+    @param all_fields - A list of all the metadata fields to be included in output.
+    @param base_dir - The base directory in which to save the output.
+    @param new_data_file - The file name of the new RTS dataset.
+    @param main_filepath - The file name of the main ARTS dataset.
+    @param demo - Boolean. Are you running this script as a demo? 
+'''
 
-        rts_data = rts_data[all_fields + ['geometry']]
-        updated_data = pd.concat([rts_data, new_data])
-        updated_data.to_file(Path('..') / 'python_output' / rts_file)
-        print(str(Path('..') / 'python_output' / rts_file))
-
-    return
+    if demo == False:
+        
+        if separate_file:
+    
+            filepath = base_dir / 'python_output' /(
+                str(new_data_file).split('.', maxsplit=1)[0] + "_formatted.geojson"
+            )
+                
+            new_data.to_file(filepath)
+            print(str(filepath))
+            
+        else:
+            
+            main_data = add_empty_columns(
+                main_data,
+                [col for col in optional_fields]
+            )
+            main_data.ContributionDate = [value.strftime(
+                '%Y-%m-%d') for value in main_data.ContributionDate]
+    
+            main_data = main_data[all_fields + ['geometry']]
+            updated_data = pd.concat([main_data, new_data])
+            updated_data.to_file(main_filepath)
+            print(str(main_filepath))
