@@ -415,8 +415,8 @@ def check_intersections(new_data, main_data, out_path, demo):
             overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
         if 'StabilizedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
-        if 'AccidentalOverlap' not in list(overlapping_data.columns.values):
-            overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
+
+        overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
 
         print(overlapping_data)
 
@@ -433,7 +433,7 @@ def check_intersections(new_data, main_data, out_path, demo):
     else:
         print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
 
-    return new_data
+    return overlapping_data
 
 
 def merge_data(new_data, edited_file):
