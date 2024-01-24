@@ -12,7 +12,7 @@ library(R.utils)
 library(reticulate)
 library(sf)
 library(tidyverse)
-source("./src/ARTS/dataformatting.R")
+source("../src/ARTS/dataformatting.R")
 ```
 
 ## User-Defined Input
@@ -27,7 +27,8 @@ Before starting, copy your new shapefile into the input_data directory. It is pr
 Provide the location of the directory in which you are working:
 
 ```{r}
-base_dir = '.'
+# If you have followed all of the directions as in the README, this should work without edits, but you can always edit it if you did things differently
+base_dir = '..'
 
 print(paste('Your base directory is', getAbsolutePath(base_dir)))
 ```
@@ -37,6 +38,7 @@ Provide the file name of the data:
 ```{r}
 # set this - if demo == TRUE, what this is set to doesn't matter
 your_file = 'rts_dataset_test_polygons_new.geojson'  # set this
+dataset_version = 'v.0.0.1-alpha' # set this to the most recent version
 
 # leave everything else in this chunk alone
 if (demo) {
@@ -71,7 +73,9 @@ if (demo) {
   # ARTS main dataset to be appended
   ARTS_main_dataset_filepath = paste(
     base_dir,
-    'ARTS_main_dataset/ARTS_main_dataset.geojson',
+    'ARTS_main_dataset',
+    dataset_version,
+    'ARTS_main_dataset.geojson',
     sep = '/'
   )
   
