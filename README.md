@@ -2,16 +2,13 @@
 
 This repository hosts:
 1. The ARTS main data set (current and historical versions)
-2. Tutorials/scripts (Jupyter Notebook or Rmarkdown) for preparing and formatting contributions to the ARTS data set 
+2. Tutorials (Jupyter Notebook or Rmarkdown) for preparing and formatting contributions to the ARTS data set (ARTS/Tutorial/data_formatting.ipynb or ARTS/Tutorial/data_formatting.Rmd)
+3. Tutorial for splitting the ARTS data set into training, validation, and testing subsets for machine learning models while ensuring no data leakage (ARTS/Tutorial/Automated_Training_Validation_Testing_Data_Split.ipynb)
 
 ![image](https://github.com/whrc/ARTS/blob/main/img/Yang_RTS_site_figure1_Dec_5_2023%20sm.jpg)
 
 ## Instructions for Use
 
-### Installation
-```
-pip install git+https://github.com/whrc/ARTS.git
-```
 ### Steps for contributing to the ARTS data set
 **1. Fork this Respository and Clone Your Fork Onto Your Local Machine**
 
