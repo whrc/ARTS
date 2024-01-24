@@ -44,31 +44,30 @@ def check_intersection_info(df):
     )
 
     if not df['int_info_complete'].all():
-        print(df[~main_data['int_info_complete']])
+        print(df[~new_data['int_info_complete']])
         raise Exception(
             'Incomplete intersection information provided. See printed rows.')
 
     print('Intersection information is complete.')
 
 
-def get_earliest_uid(polygon, main_data):
+def get_earliest_uid(polygon, new_data):
     '''
     get_earliest_uid
     Gets the UID of the first version of an RTS which was contributed to the dataset. If there are multiple versions of the same RTS within the same contribution, the feature with the earliest base map date is used.
 
     @param polygon - A geodataframe with a single RTS feature.
-    @param main_data - The main ARTS data set.
+    @param new_data - The main ARTS data set.
 
     @return `UID` from feature with earliest `ContributionDate` and `BaseMapDate` for features in `new_data` that overlap eachother.
     '''
     uids = [polygon['UID']] + \
         [x for x in polygon['SelfIntersectionIndices'].split(',')]
 
-    main_data = main_data[main_data.UID.isin(uids)]
+    new_data = new_data[new_data.UID.isin(uids)]
 
-    earliest = main_data[main_data.ContributionDate ==
-                         main_data.ContributionDate.min()]
-    earliest = earliest[main_data.BaseMapDate == main_data.BaseMapDate.min()]
+    earliest = new_data[new_data.ContributionDate == new_data.ContributionDate.min()]
+    earliest = earliest[new_data.BaseMapDate == new_data.BaseMapDate.min()]
 
     return earliest.UID.iloc[0]
 
@@ -416,8 +415,8 @@ def check_intersections(new_data, main_data, out_path, demo):
             overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
         if 'StabilizedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
-
-        overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
+        if 'AccidentalOverlap' not in list(overlapping_data.columns.values):
+            overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
 
         print(overlapping_data)
 
@@ -434,7 +433,7 @@ def check_intersections(new_data, main_data, out_path, demo):
     else:
         print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
 
-    return overlapping_data
+    return new_data
 
 
 def merge_data(new_data, edited_file):
@@ -539,7 +538,7 @@ def self_intersection(new_data):
 
     new_data.loc[new_data.SelfIntersectionIndices.str.len() > 0, 'UID'] = (
         new_data[new_data.SelfIntersectionIndices.str.len() > 0]
-        .apply(get_earliest_uid, main_data=new_data, axis=1)
+        .apply(get_earliest_uid, new_data=new_data, axis=1)
     )
 
     return new_data

@@ -1,0 +1,315 @@
+---
+title: "Metadata Formatting for the ARTS Data Set"
+author: "Heidi Rodenhizer"
+date: "January 2024"
+output: html_document
+---
+
+# Set-Up
+
+```{r}
+library(R.utils)
+library(reticulate)
+library(sf)
+library(tidyverse)
+source("./src/ARTS/dataformatting.R")
+```
+
+## User-Defined Input
+
+Would you like to run this as a demo with the mock data set? Provide 'TRUE' (mock data demo) or 'FALSE' (actual data processing of a new contribution):
+
+```{r}
+demo = TRUE
+```
+
+Before starting, copy your new shapefile into the input_data directory. It is preferred that your file use EPSG:3413 (WGS 84 / NSIDC Sea Ice Polar Stereographic North) as the coordinate system, but this script will perform the transformation if necessary.
+Provide the location of the directory in which you are working:
+
+```{r}
+base_dir = '.'
+
+print(paste('Your base directory is', getAbsolutePath(base_dir)))
+```
+
+Provide the file name of the data:
+
+```{r}
+# set this - if demo == TRUE, what this is set to doesn't matter
+your_file = 'rts_dataset_test_polygons_new.geojson'  # set this
+
+# leave everything else in this chunk alone
+if (demo) {
+  
+  # RTS data set to be processed
+  your_rts_dataset_file = 'rts_dataset_test_polygons_new.geojson'
+  your_rts_dataset_filepath = paste(
+    base_dir,
+    'Tutorial/mock_dataset/input_data',
+    your_rts_dataset_file,
+    sep = '/'
+  )
+  
+  # ARTS main dataset to be appended
+  ARTS_main_dataset_filepath = paste(
+    base_dir,
+    'Tutorial/mock_dataset/input_data/rts_dataset_test_polygons_current.geojson',
+    sep = '/'
+  )
+  
+} else {
+  
+  # RTS data set to be processed
+  your_rts_dataset_file = your_file
+  your_rts_dataset_filepath = paste(
+    base_dir,
+    'input_data',
+    your_rts_dataset_file,
+    sep = '/'
+  )
+  
+  # ARTS main dataset to be appended
+  ARTS_main_dataset_filepath = paste(
+    base_dir,
+    'ARTS_main_dataset/ARTS_main_dataset.geojson',
+    sep = '/'
+  )
+  
+}
+
+# Metadata Description File
+metadata_filepath = paste(
+  base_dir,
+  'Metadata_Format_Summary.csv',
+  sep = '/'
+  )
+```
+
+Provide the names of any metadata fields in your new file that are not already in the official RTS Data Set (please check the list to ensure that the field has not been included previously) that you would like to be included in the compiled data set:
+
+```{r}
+# Provide new metatdata fields as a list of the character column names. If there are no new fields, leave the code assigning an empty vector.
+# If your new file is a shapefile, also provide a list of the abbreviated names
+# Example:
+# new_fields = c('CustomColumn1', 'CustomColumn2')
+# Shapefile example:
+# new_fields_abbreviated = c('CstmCl1', 'CstmCl2')
+# new_fields = c('CustomColumn1' = 'CstmCl1', 'CustomColumn2' = 'CstmCl2')
+new_fields = c()
+```
+
+Have you already created RTS centroid columns, or would you like them to be created within this script? Provide either TRUE, if the columns do not exist yet, or FALSE, if you have already created them:
+
+```{r}
+# Example: 
+# calculate_centroid = FALSE
+calculate_centroid = TRUE
+```
+
+Would you like your formatted new data to be output in its own file (in which case you will email the file of new features to us to merge with the compiled data set) or appended the compiled dataset (in which case you will commit your updated file to your forked github repository and create a pull request to add the file to the official github repository). Your decision here should mostly be based on your comfort with github. If you have no idea what the second half of that sentence means, please opt for the separate file and email it to us. If you choose to create a separate file, make a directory called "output" in `r base_dir`.
+
+```{r}
+# Example
+# separate_file = TRUE
+separate_file = TRUE
+```
+
+
+# Import Metadata Description File
+
+```{r}
+metadata_format_summary = read_csv(metadata_filepath)
+
+required_fields = metadata_format_summary |>
+  filter(Required == 'True') |>
+  pull(FieldName)
+
+generated_fields = metadata_format_summary |>
+  filter(Required == 'Generated') |>
+  pull(FieldName)
+
+optional_fields = metadata_format_summary |>
+  filter(Required == 'False') |>
+  pull(FieldName)
+
+all_fields = c(required_fields, 
+                generated_fields, 
+                optional_fields, 
+                new_fields)
+```
+
+
+# Load the Main ARTS Data Set
+
+If you get the error 'Error in `all_of()`: ! Can't subset columns that don't exist. ✖ Column `{required_column}` doesn't exist.', check to make sure that all of the required columns (except UID, and optionally CentroidLat and CentroidLon) and new columns are present and named correctly in your shapefile of new RTS features.
+
+```{r}
+ARTS_main_dataset = read_sf(ARTS_main_dataset_filepath) |>
+  select(all_of(c(!!!required_fields)),
+         any_of(c(!!!generated_fields, !!!optional_fields)))
+```
+
+# Load Your New RTS Data Set
+
+```{r}
+new_dataset = preprocessing(
+  your_rts_dataset_filepath,
+  required_fields,
+  generated_fields,
+  optional_fields,
+  new_fields,
+  calculate_centroid
+)
+```
+
+
+# Check Metadata Format of New Data
+
+```{r}
+run_formatting_checks(new_dataset)
+```
+
+
+# Generate UIDs
+
+Set seed for UID generation (R) by concatenating all required metadata columns (except UID) into a single string
+```{r}
+new_dataset = seed_gen(new_dataset)
+
+new_seeds = new_dataset |>
+  pull(seed)
+```
+
+Generate UIDs (Python via reticulate package)
+```{python}
+import uuid
+```
+
+```{python}
+new_uids = [str(uuid.uuid5(uuid.NAMESPACE_DNS, name = seed)) for seed in r.new_seeds]
+r.new_uids = new_uids
+```
+
+Add UIDs to New RTS Data (R)
+```{r}
+new_dataset = new_dataset |>
+  mutate(UID = new_uids,
+         .after = seed)
+```
+
+# Check for Intersections with RTS Data Set
+
+Find intersecting RTS polygons from the official RTS data set and retrieve their UIDs. Create empty columns to manually classify the repeated polygons.
+```{r}
+if (demo) {
+  intersections_output_filepath = paste(
+    base_dir,
+    'Tutorial/mock_dataset/python_output',
+    paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], 
+           '_overlapping_polygons.geojson'
+           ),
+    sep = '/'
+  )
+} else {
+  intersections_output_filepath = paste(
+    base_dir,
+    'python_output',
+    paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], 
+           '_overlapping_polygons.geojson'
+           ),
+    sep = '/'
+  )
+}
+
+new_dataset = check_intersections(
+  new_dataset,
+  ARTS_main_dataset,
+  intersections_output_filepath,
+  demo
+)
+```
+
+At this point, you will need to manually check all polygons with intersections against the polygons in the official RTS data set in your preferred GIS software and save the output to `r paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_overlapping_polygons_edited.geojson')` (press Ctrl+Enter while cursor is in the preceding in-line code chunk to see the actual file name, rather than the code to produce the file name).  When possible/necessary, try to find imagery that matches the date of the intersecting polygons - this may require contacting the lab that did the original delineation.
+
+Your job is to inspect each of the polygons listed in the 'Intersections' column compared to the new RTS feature and manually copy and paste the UIDs from the 'Intersections' column into the 'RepeatRTS', 'StabilizedRTS', 'MergedRTS', or 'AccidentalOverlap' based on the relationship between the two polygons.
+
+- Paste the UID into the RepeatRTS column when the new RTS feature is the same RTS feature as the RTS feature in the 'Intersections' column, but was delineated at a different point in time, by a different lab at the same point in time, or from different imagery at the same point in time. The RTS feature is the same when it was the result of the same RTS initiation event.
+
+- Paste the UID into the StabilizedRTS column when the RTS feature in the 'Intersections' column is a stabilized RTS scar as of the date of the imagery used in the new RTS delineations.
+
+- Paste the UID into the MergedRTS column when multiple RTS features in the 'Intersections' column merged to form the new RTS feature.
+
+- Paste the UID into the AccidentalOverlap column when inaccuracies in delineation of separate RTS features lead to overlap (e.g. features that are very close to each other and the polygons barely touch). 
+
+When this is done, each of the UIDs in the Intersections column should have been copied into one (and only one) of the 'RepeatRTS', 'StabilizedRTS', or 'MergedRTS' columns.
+
+
+# Load Manually Edited File and Join to New Data
+
+Add the 'RepeatRTS', 'StabilizedRTS', 'MergedRTS', or 'AccidentalOverlap' columns that you just edited back into `new_data`.
+
+```{r}
+if (demo) {
+  edited_filepath = paste(
+    base_dir,
+    'Tutorial/mock_dataset/output',
+    paste0(
+      str_split(your_rts_dataset_file, '\\.')[[1]][1], 
+      '_overlapping_polygons_edited.geojson'
+    ), 
+    sep = '/'
+  )
+} else {
+  edited_filepath = paste(
+    base_dir,
+    'output',
+    paste0(
+      str_split(your_rts_dataset_file, '\\.')[[1]][1], 
+      '_overlapping_polygons_edited.geojson'
+    ), 
+    sep = '/'
+  )
+}
+
+merged_data = merge_data(new_dataset, edited_filepath)
+```
+
+# Check for Intersections within New RTS Data Set
+
+Intersections within the new data set are assumed to be repeat delineations of the same RTS feature. If this is not true (e.g. if you have delineated an old RTS scar and an active RTS feature on top of it), this code will not assign UIDs properly. In this case, please get in touch with us to determine how to proceed.
+
+```{r}
+merged_data_self_intersect = self_intersection(merged_data)
+```
+
+
+# Check Completeness of Intersection Information
+
+```{r}
+check_intersection_info(merged_data_self_intersect)
+```
+
+
+# Final Column Selection
+
+```{r}
+formatted_data = merged_data_self_intersect |>
+  add_empty_columns(optional_fields) |>
+  select(all_of(all_fields))
+```
+
+# Save Formatted File as a Shapefile
+
+```{r}
+output(formatted_data,
+       ARTS_main_dataset,
+       optional_fields,
+       all_fields,
+       base_dir,
+       your_rts_dataset_file,
+       ARTS_main_dataset_filepath,
+       separate_file,
+       demo)
+```
+
+Now you are ready to submit `r ifelse(separate_file == TRUE, paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_formatted.geojson'), rts_file)`!
