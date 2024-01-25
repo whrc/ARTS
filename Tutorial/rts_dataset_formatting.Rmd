@@ -290,7 +290,7 @@ merged_data_self_intersect = self_intersection(merged_data)
 # Check Completeness of Intersection Information
 
 ```{r}
-check_intersection_info(merged_data_self_intersect)
+check_intersection_info(merged_data_self_intersect, your_rts_dataset_file)
 ```
 
 

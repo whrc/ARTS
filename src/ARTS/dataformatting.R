@@ -10,7 +10,7 @@ add_empty_columns = function(df, column_names) {
 }
 
 # check_intersection_info
-check_intersection_info = function(df) {
+check_intersection_info = function(df, new_data_file) {
   
   duplicated_UIDs = df |>
     as_tibble() |>
@@ -31,13 +31,14 @@ check_intersection_info = function(df) {
         TRUE ~ FALSE
       )
     )
+  
   if (!all(int_info_complete$int_info_complete)) {
     
     incomplete_info = int_info_complete |>
       filter(int_info_complete == FALSE)
     
     st_write(incomplete_info, paste(
-      'r_output',
+      'output',
       paste0(str_split(new_data_file, '\\.')[[1]][1],
              '_incomplete_information.geojson'),
       sep = '/'), 
@@ -50,7 +51,7 @@ check_intersection_info = function(df) {
     stop(
       paste0(
         'Incomplete information provided about intersecting RTS polygons. Please complete information for rows printed above. This file has also been saved to ', paste(
-          'r_output',
+          'output',
           paste0(str_split(new_data_file, '\\.')[[1]][1],
                  '_incomplete_information.geojson'),
           sep = '/')),
@@ -491,9 +492,9 @@ self_intersection = function(new_data) {
         st_touches(x = new_data, remove_self = TRUE),
         ~ str_flatten(.x, collapse = ',')
       ),
-      SelfIntersectionIndices = case_when(
-        str_length(SelfAdjacentIndices) > 0 ~ '',
-        TRUE ~ SelfIntersectionIndices
+      SelfIntersectionIndices = remove_adjacent_polys(
+        SelfIntersectionIndices,
+        SelfAdjacentIndices
       ),
       UID = case_when(
         str_length(
