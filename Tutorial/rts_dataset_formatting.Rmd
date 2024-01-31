@@ -23,7 +23,17 @@ Would you like to run this as a demo with the mock data set? Provide 'TRUE' (moc
 demo = TRUE
 ```
 
-Before starting, copy your new shapefile into the input_data directory. It is preferred that your file use EPSG:3413 (WGS 84 / NSIDC Sea Ice Polar Stereographic North) as the coordinate system, but this script will perform the transformation if necessary.
+Before starting, copy your new RTS dataset (can be a shapefile or a geojson) into a directory called "input_data" within the directory in which you would like to work. If you do not change any code in the following code chunk, the default directory will be the directory up one level from the location of this script.
+
+Default file structure:
+    
+    > ARTS (default working directory)
+        > ARTS_main_dataset
+        > img
+        > **input_data**
+        > src
+        > Tutorial
+
 Provide the location of the directory in which you are working:
 
 ```{r}
@@ -37,8 +47,8 @@ Provide the file name of the data:
 
 ```{r}
 # set this - if demo == TRUE, what this is set to doesn't matter
-your_file = 'rts_dataset_test_polygons_new.geojson'  # set this
-dataset_version = 'v.0.0.1-alpha' # set this to the most recent version
+your_file = 'new_data.geojson'  # set this
+dataset_version = 'v.1.0.0' # set this to the most recent version
 
 # leave everything else in this chunk alone
 if (demo) {
@@ -94,12 +104,16 @@ Provide the names of any metadata fields in your new file that are not already i
 ```{r}
 # Provide new metatdata fields as a list of the character column names. If there are no new fields, leave the code assigning an empty vector.
 # If your new file is a shapefile, also provide a list of the abbreviated names
+
 # Example:
 # new_fields = c('CustomColumn1', 'CustomColumn2')
+
 # Shapefile example:
 # new_fields_abbreviated = c('CstmCl1', 'CstmCl2')
 # new_fields = c('CustomColumn1' = 'CstmCl1', 'CustomColumn2' = 'CstmCl2')
+
 new_fields = c()
+new_fields_abbreviated = c()
 ```
 
 Have you already created RTS centroid columns, or would you like them to be created within this script? Provide either TRUE, if the columns do not exist yet, or FALSE, if you have already created them:
@@ -107,15 +121,15 @@ Have you already created RTS centroid columns, or would you like them to be crea
 ```{r}
 # Example: 
 # calculate_centroid = FALSE
-calculate_centroid = TRUE
+calculate_centroid = FALSE
 ```
 
-Would you like your formatted new data to be output in its own file (in which case you will email the file of new features to us to merge with the compiled data set) or appended the compiled dataset (in which case you will commit your updated file to your forked github repository and create a pull request to add the file to the official github repository). Your decision here should mostly be based on your comfort with github. If you have no idea what the second half of that sentence means, please opt for the separate file and email it to us. If you choose to create a separate file, make a directory called "output" in `r base_dir`.
+Would you like your formatted new data to be output in its own file (in which case you will email the file of new features to us to merge with the compiled data set) or appended the compiled dataset (in which case you will commit your updated file to your forked github repository and create a pull request to add the file to the official github repository). Your decision here should mostly be based on your comfort with github. If you have no idea what the second half of that sentence means, please opt for the separate file and email it to us.
 
 ```{r}
 # Example
 # separate_file = TRUE
-separate_file = TRUE
+separate_file = FALSE
 ```
 
 
@@ -208,7 +222,7 @@ Find intersecting RTS polygons from the official RTS data set and retrieve their
 if (demo) {
   intersections_output_filepath = paste(
     base_dir,
-    'Tutorial/mock_dataset/python_output',
+    'Tutorial/mock_dataset/output',
     paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], 
            '_overlapping_polygons.geojson'
            ),
@@ -217,7 +231,7 @@ if (demo) {
 } else {
   intersections_output_filepath = paste(
     base_dir,
-    'python_output',
+    'output',
     paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], 
            '_overlapping_polygons.geojson'
            ),
@@ -233,24 +247,28 @@ new_dataset = check_intersections(
 )
 ```
 
-At this point, you will need to manually check all polygons with intersections against the polygons in the official RTS data set in your preferred GIS software and save the output to `r paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_overlapping_polygons_edited.geojson')` (press Ctrl+Enter while cursor is in the preceding in-line code chunk to see the actual file name, rather than the code to produce the file name).  When possible/necessary, try to find imagery that matches the date of the intersecting polygons - this may require contacting the lab that did the original delineation.
+At this point, you will need to manually check all polygons with intersections against the polygons in the official RTS data set and polygons with self intersections against themselves in your preferred GIS software and save the output to `r paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_overlapping_polygons_edited.geojson')` (press Ctrl+Enter while cursor is in the preceding in-line code chunk to see the actual file name, rather than the code to produce the file name).  When possible/necessary, try to find imagery that matches the date of the intersecting polygons - this may require contacting the lab that did the original delineation.
 
-Your job is to inspect each of the polygons listed in the 'Intersections' column compared to the new RTS feature and manually copy and paste the UIDs from the 'Intersections' column into the 'RepeatRTS', 'StabilizedRTS', 'MergedRTS', or 'AccidentalOverlap' based on the relationship between the two polygons.
+Your job is to inspect each of the previously published polygons listed in the 'Intersections' column compared to the new RTS feature and manually copy and paste the UIDs from the 'Intersections' column into the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'AccidentalOverlap', or 'UnknownRelationship' based on the relationship between the two polygons. Similarly, you need to inspect each of the polygons listed in the 'SelfIntersections' column and copy and paste the UIDs from the 'SelfIntersections' column into the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'AccidentalOverlap', or 'UnknownRelationship' based on the relationship between the two polygons.
 
-- Paste the UID into the RepeatRTS column when the new RTS feature is the same RTS feature as the RTS feature in the 'Intersections' column, but was delineated at a different point in time, by a different lab at the same point in time, or from different imagery at the same point in time. The RTS feature is the same when it was the result of the same RTS initiation event.
+- Paste the UID into the RepeatRTS column when the RTS feature in the current row is the same RTS feature as the RTS feature in the 'Intersections' or 'SelfIntersections' column, but was delineated at a different point in time, by a different lab at the same point in time, or from different imagery at the same point in time. The RTS feature is the same when it was the result of the same RTS initiation event.
 
-- Paste the UID into the StabilizedRTS column when the RTS feature in the 'Intersections' column is a stabilized RTS scar as of the date of the imagery used in the new RTS delineations.
+- Paste the UID into the NewRTS column when the RTS feature in the 'Intersections' or 'SelfIntersections' column is a new RTS feature which formed on top of the RTS feature in the current row.
 
-- Paste the UID into the MergedRTS column when multiple RTS features in the 'Intersections' column merged to form the new RTS feature.
+- Paste the UID into the StabilizedRTS column when the RTS feature in the 'Intersections' or 'SelfIntersections' column is a stabilized RTS scar as of the date of the imagery used in the new RTS delineations.
 
-- Paste the UID into the AccidentalOverlap column when inaccuracies in delineation of separate RTS features lead to overlap (e.g. features that are very close to each other and the polygons barely touch). 
+- Paste the UID into the MergedRTS column when multiple RTS features in the 'Intersections' or 'SelfIntersections' column merged to form the new RTS feature.
 
-When this is done, each of the UIDs in the Intersections column should have been copied into one (and only one) of the 'RepeatRTS', 'StabilizedRTS', or 'MergedRTS' columns.
+- Paste the UID into the AccidentalOverlap column when inaccuracies in delineation of separate RTS features lead to overlap (e.g. features that are very close to each other and the polygons barely overlap).
+
+- If you are unable to determine the relationship based on an inspection of the original imagery and the available information, you can copy the UID into the UnknownRelationship column. NOTE: This should be a last resort used in rare occasions (e.g. the researcher who delineated the feature cannot be contacted and insufficient information was recorded to make a reasonable confident decision), as it will limit the utility of the row of data to researchers.  
+
+When this is done, each of the UIDs in the 'Intersections' and 'SelfIntersections' columns should have been copied into one (and only one) of the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'AccidentalOverlap', or 'UnknownRelationship' columns.
 
 
 # Load Manually Edited File and Join to New Data
 
-Add the 'RepeatRTS', 'StabilizedRTS', 'MergedRTS', or 'AccidentalOverlap' columns that you just edited back into `new_data`.
+Add the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'AccidentalOverlap', or 'UnknownRelationship' columns that you just edited back into `new_dataset`.
 
 ```{r}
 if (demo) {
@@ -278,26 +296,17 @@ if (demo) {
 merged_data = merge_data(new_dataset, edited_filepath)
 ```
 
-# Check for Intersections within New RTS Data Set
-
-Intersections within the new data set are assumed to be repeat delineations of the same RTS feature. If this is not true (e.g. if you have delineated an old RTS scar and an active RTS feature on top of it), this code will not assign UIDs properly. In this case, please get in touch with us to determine how to proceed.
-
-```{r}
-merged_data_self_intersect = self_intersection(merged_data)
-```
-
-
 # Check Completeness of Intersection Information
 
 ```{r}
-check_intersection_info(merged_data_self_intersect, your_rts_dataset_file)
+check_intersection_info(merged_data, your_rts_dataset_file, base_dir)
 ```
 
 
 # Final Column Selection
 
 ```{r}
-formatted_data = merged_data_self_intersect |>
+formatted_data = merged_data |>
   add_empty_columns(optional_fields) |>
   select(all_of(all_fields))
 ```
@@ -305,13 +314,33 @@ formatted_data = merged_data_self_intersect |>
 # Save Formatted File as a Shapefile
 
 ```{r}
+new_increment = dataset_version |>
+  str_split_i('\\.', i = 2) |>
+  str_split_i('-', i = 1) |>
+  as.numeric() + 1
+
+new_version = str_flatten(
+  c(str_split(dataset_version, '\\.')[[1]][1], 
+    new_increment,
+    '0',
+    '0'
+    ), 
+  '.')
+
+updated_ARTS_filepath = paste(
+    base_dir,
+    'ARTS_main_dataset',
+    new_version,
+    sep = '/'
+  )
+
 output(formatted_data,
        ARTS_main_dataset,
-       optional_fields,
+       new_fields,
        all_fields,
        base_dir,
        your_rts_dataset_file,
-       ARTS_main_dataset_filepath,
+       updated_ARTS_filepath,
        separate_file,
        demo)
 ```
