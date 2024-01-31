@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import warnings
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -24,29 +25,52 @@ def add_empty_columns(df, column_names):
     return df
 
 
-def check_intersection_info(df):
+def check_intersection_info(df, new_data_file, base_dir, demo):
     """
      Checks that intersection information has been completed for every polygon.
      If there is an intersection reported in any row and the UID of that intersection has not been placed
-     into one of "RepeatRTS", "MergedRTS", "StabilizedRTS", or "AccidentalOverlap", the test fails.
+     into one of "RepeatRTS", "MergedRTS", "StabilizedRTS", "AccidentalOverlap", or "UnkownRelationship", the test fails.
 
      @param df - Dataframe containing information about RTS intersections and self - intersections.
     """
 
-    duplicated_uids = df['UID'].duplicated()
-    duplicated_uids = df.loc[duplicated_uids, 'UID']
+    df['all_intersections'] = [
+            list(filter(lambda a: a != '', 
+                        list(set(item1.split(',') + item2.split(','))))) 
+            for item1, item2 
+            in zip(df.Intersections, df.SelfIntersections)
+        ]
+    df['all_classifications'] = [
+            list(filter(lambda a: a != '', 
+                        list(set(item1.split(',') 
+                                 + item2.split(',') 
+                                 + item3.split(',') 
+                                 + item4.split(',') 
+                                 + item5.split(',')
+                                 + item6.split(','))))) 
+            for item1, item2, item3, item4, item5, item6 
+            in zip(df.RepeatRTS, df.StabilizedRTS, df.NewRTS, df.MergedRTS, df.AccidentalOverlap, df.UnknownRelationship)
+        ]
+    
+    df['unclassified_intersections'] = [
+            ','.join([intersection for intersection in intersections if intersection not in classifications])
+            for intersections, classifications 
+            in zip(df.all_intersections, df.all_classifications)
+        ]
 
-    df['int_info_complete'] = (
-        (df['Intersections'].isnull()) & (df['SelfIntersectionIndices'].str.len() == 0) |
-        (~df['Intersections'].isnull()) & (df['RepeatRTS'].notnull() | df['MergedRTS'].notnull() | df['StabilizedRTS'].notnull() | df['AccidentalOverlap'].notnull()) |
-        (df['SelfIntersectionIndices'].str.len() > 0) & (
-            df['UID'].isin(duplicated_uids))
-    )
+    df['int_info_complete'] = df.unclassified_intersections.str.len() == 0
 
-    if not df['int_info_complete'].all():
-        print(df[~new_data['int_info_complete']])
-        raise Exception(
-            'Incomplete intersection information provided. See printed rows.')
+    df = df.drop(['all_intersections', 'all_classifications'], axis = 1)
+
+    if not demo:
+        if not df['int_info_complete'].all():
+            incomplete_info = df[~df['int_info_complete']]
+            incomplete_info.to_file(base_dir / 'output' / (
+                str(your_rts_dataset_file).split('.')[0] + "_incomplete_information.geojson"
+                ))
+            print(incomplete_info)
+            raise Exception(
+                'Incomplete intersection information provided. See printed rows.')
 
     print('Intersection information is complete.')
 
@@ -59,15 +83,16 @@ def get_earliest_uid(polygon, new_data):
     @param polygon - A geodataframe with a single RTS feature.
     @param new_data - The main ARTS data set.
 
-    @return `UID` from feature with earliest `ContributionDate` and `BaseMapDate` for features in `new_data` that overlap eachother.
+    @return `UID` from feature with earliest `BaseMapDate` for features in `new_data` that overlap each other.
     '''
     uids = [polygon['UID']] + \
-        [x for x in polygon['SelfIntersectionIndices'].split(',')]
+        [x for x in polygon['SelfIntersections'].split(',')]
 
     new_data = new_data[new_data.UID.isin(uids)]
 
-    earliest = new_data[new_data.ContributionDate == new_data.ContributionDate.min()]
-    earliest = earliest[new_data.BaseMapDate == new_data.BaseMapDate.min()]
+    new_data['StartDate'] = pd.to_datetime([re.split(',', item)[0] for item in new_data.BaseMapDate])
+
+    earliest = new_data[new_data.StartDate == new_data.StartDate.min()]
 
     return earliest.UID.iloc[0]
 
@@ -83,7 +108,7 @@ def get_intersecting_uids(polygon, main_data):
     @return `UID` of overlapping or touching RTS.
     '''
     intersections = [','.join(gpd.overlay(
-        polygon, main_data, how='intersection').UID_2)]
+        polygon, main_data, how='intersection', keep_geom_type = True).UID_2)]
     return intersections
 
 
@@ -294,7 +319,7 @@ def run_formatting_checks(df):
     print('Formatting looks good!')
 
 
-def preprocessing(new_data_filepath, required_fields, generated_fields, optional_fields, new_fields, calculate_centroid):
+def preprocessing(new_data_filepath, required_fields, generated_fields, optional_fields, new_fields, new_fields_abbreviated, calculate_centroid):
     '''
     Reads the RTS data set to be processed, ensures it is in the correct CRS, calculates centroids if requested, filters the columns and checks that all required columns are present.
 
@@ -401,22 +426,49 @@ def check_intersections(new_data, main_data, out_path, demo):
     new_data['AdjacentPolys'] = adjacent_polys
 
     new_data.Intersections = remove_adjacent_polys(
-        new_data.Intersections, new_data.AdjacentPolys)
-    new_data.drop('AdjacentPolys', axis=1)
+        new_data.Intersections, new_data.AdjacentPolys
+    )
+    
+    intersections = []
+    for idx in range(0, new_data.shape[0]):
+        new_intersections = get_intersecting_uids(
+            new_data.iloc[[idx]], new_data.drop([idx]))
+        intersections = intersections + new_intersections
 
+    new_data['SelfIntersections'] = intersections
+
+    adjacent_polys = []
+    for idx in range(0, new_data.shape[0]):
+        new_adjacent_polys = get_touching_uids(
+            new_data.iloc[[idx]], new_data.drop(idx))
+        adjacent_polys = adjacent_polys + new_adjacent_polys
+
+    new_data['SelfAdjacentPolys'] = adjacent_polys
+
+    new_data.SelfIntersections = remove_adjacent_polys(
+        new_data.SelfIntersections, new_data.SelfAdjacentPolys
+    )
+
+    new_data = new_data.drop(['AdjacentPolys', 'SelfAdjacentPolys'], axis = 1)
+    
     overlapping_data = new_data.copy()
-    overlapping_data = overlapping_data[overlapping_data.Intersections.str.len(
-    ) > 0]
+    overlapping_data = overlapping_data[(overlapping_data['Intersections'].str.len(
+    ) > 0) | (overlapping_data['SelfIntersections'].str.len(
+    ) > 0)]
 
     if overlapping_data.shape[0] > 0:
         if 'RepeatRTS' not in list(overlapping_data.columns.values):
             overlapping_data['RepeatRTS'] = ['']*overlapping_data.shape[0]
         if 'MergedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
+        if 'NewRTS' not in list(overlapping_data.columns.values):
+            overlapping_data['NewRTS'] = ['']*overlapping_data.shape[0]
         if 'StabilizedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
         if 'AccidentalOverlap' not in list(overlapping_data.columns.values):
             overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
+        if 'UnknownRelationship' not in list(overlapping_data.columns.values):
+            overlapping_data['UnknownRelationship'] = ['']*overlapping_data.shape[0]
 
         print(overlapping_data)
 
@@ -435,7 +487,6 @@ def check_intersections(new_data, main_data, out_path, demo):
 
     return new_data
 
-
 def merge_data(new_data, edited_file):
     '''
     merge the data to be submitted with manually edited, intersection-checked file.
@@ -448,22 +499,56 @@ def merge_data(new_data, edited_file):
     if Path.exists(Path(edited_file)):
         overlapping_data = (
             gpd.read_file(edited_file)
-            .filter(items=['UID', 'Intersections', 'RepeatRTS', 'MergedRTS', 'StabilizedRTS', 'AccidentalOverlap'])
+            .filter(items=['UID', 'Intersections', 'SelfIntersections', 'RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'])
         )
+        
+        for column in ['Intersections', 'SelfIntersections', 'RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
+            overlapping_data[column] = overlapping_data[column].astype(str)
+            overlapping_data[column].loc[overlapping_data[column] == 'nan'] = ''
+            overlapping_data = overlapping_data.replace(to_replace = 'None', value = '')
 
         new_data = pd.merge(new_data,
                             overlapping_data,
                             how='outer',
-                            on=['UID', 'Intersections'])
+                            on=['UID', 'Intersections', 'SelfIntersections'])
 
-        new_data.loc[~new_data.RepeatRTS.isnull(
-        ), 'UID'] = new_data.RepeatRTS[~new_data.RepeatRTS.isnull()]
+        for column in ['RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
+            new_data[column] = new_data[column].astype(str)
+            new_data[column].loc[new_data[column] == 'nan'] = ''
+        
+        not_repeat = new_data.RepeatRTS == ''
+
+        original_uid_exists = pd.Series(
+            [pd.Series([repeat in intersections for repeat in repeats]).any() 
+             for repeats, intersections 
+             in zip(new_data.RepeatRTS.str.split(','), new_data.Intersections.str.split(','))]
+        )
+
+        original_uid = [
+            [repeat for repeat in repeats if repeat in intersections][0]
+            for repeats, intersections 
+            in zip(
+                new_data.RepeatRTS[original_uid_exists & ~not_repeat].str.split(','),
+                new_data.Intersections[original_uid_exists & ~not_repeat].str.split(',')
+                )
+            ]
+
+        oldest_new_uid = new_data[~original_uid_exists & ~not_repeat].apply(get_earliest_uid, new_data=new_data, axis=1)
+
+        new_data.loc[original_uid_exists & ~not_repeat, 'UID'] = original_uid
+        new_data.loc[~original_uid_exists & ~not_repeat, 'UID'] = oldest_new_uid
+        
+        new_data = new_data.replace(to_replace = 'None', value = '')
+
+        new_data["ContributionDate"] = datetime.today().strftime('%Y-%m-%d')
 
     else:
         new_data['RepeatRTS'] = ['']*new_data.shape[0]
         new_data['MergedRTS'] = ['']*new_data.shape[0]
+        new_data['NewRTS'] = ['']*new_data.shape[0]
         new_data['StabilizedRTS'] = ['']*new_data.shape[0]
         new_data['AccidentalOverlap'] = ['']*new_data.shape[0]
+        new_data["ContributionDate"] = datetime.today().strftime('%Y-%m-%d')
 
         warnings.warn(
             "No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
@@ -483,10 +568,10 @@ def seed_gen(new_data):
 
     new_data.CentroidLat = np.round(new_data.CentroidLat, 5)
     new_data.CentroidLon = np.round(new_data.CentroidLon, 5)
-    c = new_data.BaseMapResolution == new_data.BaseMapResolution.astype(int)
-    new_data.loc[c, 'BaseMapResolutionStr'] = new_data.BaseMapResolution.astype(
+    res_is_int = new_data.BaseMapResolution == new_data.BaseMapResolution.astype(int)
+    new_data.loc[res_is_int, 'BaseMapResolutionStr'] = new_data.BaseMapResolution.astype(
         int).astype(str)
-    new_data.loc[~c, 'BaseMapResolutionStr'] = new_data.BaseMapResolution.astype(
+    new_data.loc[~res_is_int, 'BaseMapResolutionStr'] = new_data.BaseMapResolution.astype(
         str)
     new_data['seed'] = (new_data[[
         'CentroidLat',
@@ -505,46 +590,7 @@ def seed_gen(new_data):
     return new_data
 
 
-def self_intersection(new_data):
-    '''
-    Check intersection within a geopandas dataframe
-
-    @param new_data - The new RTS data set.
-
-    @return a dataframe with a column for self-intersections added
-    '''
-
-    new_data["ContributionDate"] = datetime.today().strftime('%Y-%m-%d')
-
-    intersections = []
-    for idx in range(0, new_data.shape[0]):
-        new_intersections = get_intersecting_uids(
-            new_data.iloc[[idx]], new_data.drop([idx]))
-        intersections = intersections + new_intersections
-
-    new_data['SelfIntersectionIndices'] = intersections
-
-    adjacent_polys = []
-    for idx in range(0, new_data.shape[0]):
-        new_adjacent_polys = get_touching_uids(
-            new_data.iloc[[idx]], new_data.drop(idx))
-        adjacent_polys = adjacent_polys + new_adjacent_polys
-
-    new_data['AdjacentPolys'] = adjacent_polys
-
-    new_data.Intersections = remove_adjacent_polys(
-        new_data.Intersections, new_data.AdjacentPolys)
-    new_data.drop('AdjacentPolys', axis=1)
-
-    new_data.loc[new_data.SelfIntersectionIndices.str.len() > 0, 'UID'] = (
-        new_data[new_data.SelfIntersectionIndices.str.len() > 0]
-        .apply(get_earliest_uid, new_data=new_data, axis=1)
-    )
-
-    return new_data
-
-
-def output(new_data, main_data, optional_fields, all_fields, base_dir, new_data_file, main_filepath, separate_file, demo):
+def output(new_data, main_data, new_fields, all_fields, base_dir, new_data_file, updated_filepath, separate_file, demo):
     '''
     select the desired fields and save the geopandas dataframe to file
 
@@ -554,7 +600,7 @@ def output(new_data, main_data, optional_fields, all_fields, base_dir, new_data_
     @param all_fields - A list of all the metadata fields to be included in output.
     @param base_dir - The base directory in which to save the output.
     @param new_data_file - The file name of the new RTS dataset.
-    @param main_filepath - The file name of the main ARTS dataset.
+    @param updated_filepath - The file name of the main ARTS dataset.
     @param demo - Boolean. Are you running this script as a demo? 
 '''
 
@@ -574,12 +620,20 @@ def output(new_data, main_data, optional_fields, all_fields, base_dir, new_data_
 
             main_data = add_empty_columns(
                 main_data,
-                [col for col in optional_fields]
+                [col for col in new_fields]
             )
-            main_data.ContributionDate = [value.strftime(
-                '%Y-%m-%d') for value in main_data.ContributionDate]
+
+            if not type(main_data.ContributionDate[0]) == str:
+                main_data.ContributionDate = [value.strftime(
+                    '%Y-%m-%d') for value in main_data.ContributionDate]
 
             main_data = main_data[all_fields + ['geometry']]
             updated_data = pd.concat([main_data, new_data])
-            updated_data.to_file(main_filepath)
-            print(str(main_filepath))
+
+            if not os.path.exists(updated_filepath):
+                os.mkdir(updated_filepath)
+                
+            updated_filepath = updated_filepath / 'ARTS_main_dataset.geojson'
+
+            updated_data.to_file(updated_filepath)
+            print(str(updated_filepath))
