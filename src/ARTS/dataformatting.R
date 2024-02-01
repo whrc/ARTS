@@ -10,7 +10,7 @@ add_empty_columns = function(df, column_names) {
 }
 
 # check_intersection_info
-check_intersection_info = function(df) {
+check_intersection_info = function(df, new_data_file) {
   
   duplicated_UIDs = df |>
     as_tibble() |>
@@ -31,13 +31,15 @@ check_intersection_info = function(df) {
         TRUE ~ FALSE
       )
     )
+  
   if (!all(int_info_complete$int_info_complete)) {
     
     incomplete_info = int_info_complete |>
       filter(int_info_complete == FALSE)
     
     st_write(incomplete_info, paste(
-      'r_output',
+      base_dir,
+      'output',
       paste0(str_split(new_data_file, '\\.')[[1]][1],
              '_incomplete_information.geojson'),
       sep = '/'), 
@@ -50,7 +52,7 @@ check_intersection_info = function(df) {
     stop(
       paste0(
         'Incomplete information provided about intersecting RTS polygons. Please complete information for rows printed above. This file has also been saved to ', paste(
-          'r_output',
+          'output',
           paste0(str_split(new_data_file, '\\.')[[1]][1],
                  '_incomplete_information.geojson'),
           sep = '/')),
@@ -69,13 +71,17 @@ get_earliest_uid = function(new_data, index_col, self_intersections_col) {
   indices = c(index_col,
                as.numeric(split_string_to_vector(self_intersections_col)))
   
-  return(
-    new_data |>
-      slice(indices) |>
-      filter(ContributionDate == min(ContributionDate)) |>
-      filter(BaseMapDate == min(BaseMapDate)) |>
-      pull(UID)
-  )
+  id = new_data |>
+    slice(indices) |>
+    filter(BaseMapDate == min(BaseMapDate)) |>
+    pull(UID)
+  
+  # If there are multiple entries returned, take the first one
+  if (length(id) > 1) {
+    id = id[1]
+  }
+  
+  return(id)
   
 }
 
@@ -96,7 +102,7 @@ remove_adjacent_polys = function(intersections, adjacent_polys) {
   intersections = str_split(intersections, ',')
   adjacent_polys = str_split(adjacent_polys, ',')
   
-  intersections = map2(intersections,
+  intersections = map2_chr(intersections,
                         adjacent_polys,
                         ~ str_flatten(.x[which(!.x %in% .y)], collapse = ','))
   
@@ -368,56 +374,80 @@ seed_gen = function(new_data) {
 }
 
 check_intersections = function(new_data, main_data, out_path, demo) {
-  new_data = new_data |>
+  new_data = new_data %>%
     mutate(
-      Intersections = map_chr(
+      # get indices of polygons in main dataset which overlap or touch
+      IntersectionIndices = map_chr(
         st_intersects(new_data,
                       main_data,
                       sparse = TRUE),
         ~ str_flatten(.x, collapse = ',')
       ),
+      # get indices of polygons in main dataset with touch, but do not overlap
       AdjacentPolys = map_chr(
         st_touches(new_data,
                    main_data,
                    sparse = TRUE),
         ~ str_flatten(.x, collapse = ',')
       ),
-      Intersections = remove_adjacent_polys(Intersections, AdjacentPolys),
+      # remove indices of touching polygons to get polygons which overlap
+      IntersectionIndices = remove_adjacent_polys(IntersectionIndices, AdjacentPolys),
+      idx = seq(1:nrow(new_data)),
+      # get indices of polygons within new dataset which overlap or touch (excluding itself)
+      SelfIntersectionIndices = map_chr(
+        st_intersects(x = new_data, remove_self = TRUE),
+        ~ str_flatten(.x, collapse = ',')
+      ),
+      # get indices of polygons within new dataset which touch, but do not overlap (excluding self)
+      SelfAdjacentPolys = map_chr(
+        st_touches(x = new_data, remove_self = TRUE),
+        ~ str_flatten(.x, collapse = ',')
+      ),
+      # remove indices of touching polygons to get polygons which overlap within new dataset
+      SelfIntersectionIndices = remove_adjacent_polys(
+        SelfIntersectionIndices,
+        SelfAdjacentPolys
+      ),
       .after = colnames(new_data)[length(which(colnames(new_data) != 'geometry'))]
-    ) |>
-    rowwise() |>
+    ) %>%
+    rowwise() %>%
     mutate(
-      Intersections = get_uids_by_index_string(Intersections, main_data),
+      # convert indices of overlapping polygons to UID
+      Intersections = get_uids_by_index_string(IntersectionIndices, main_data),
+      SelfIntersections = get_uids_by_index_string(SelfIntersectionIndices, new_data),
       .after = Intersections
-    ) |>
-    ungroup() |>
+    ) %>%
+    ungroup() %>%
     select(-AdjacentPolys)
   
-  overlapping_data = new_data |>
-    filter(str_length(Intersections) > 0)
+  overlapping_data = new_data %>%
+    filter(str_length(Intersections) > 0 | str_length(SelfIntersections) > 0)
   
   if (nrow(overlapping_data) > 0) {
     
     if (!'RepeatRTS' %in% colnames(overlapping_data)) {
-      overlapping_data = overlapping_data |>
+      overlapping_data = overlapping_data %>%
         mutate(RepeatRTS = NA,
                .before = geometry)
     }
     if (!'MergedRTS' %in% colnames(overlapping_data)) {
-      overlapping_data = overlapping_data |>
+      overlapping_data = overlapping_data %>%
         mutate(MergedRTS = NA,
                .before = geometry)
     }
     if (!'StabilizedRTS' %in% colnames(overlapping_data)) {
-      overlapping_data = overlapping_data |>
+      overlapping_data = overlapping_data %>%
         mutate(StabilizedRTS = NA,
                .before = geometry)
     }
     
-    overlapping_data = overlapping_data |>
-      mutate(AccidentalOverlap = NA,
-             .before = geometry)
-    
+    if (!'AccidentalOverlap' %in% colnames(overlapping_data)) {
+      overlapping_data = overlapping_data %>%
+        mutate(AccidentalOverlap = NA,
+               .before = geometry)
+      
+    }
+   
     print(overlapping_data)
     
     if (!demo) {
@@ -439,35 +469,64 @@ check_intersections = function(new_data, main_data, out_path, demo) {
   
 }
 
+update_uid = function(new_data, uid, repeat_rts, intersections, idx, self_intersection_indices) {
+  
+  not_repeat = is.na(repeat_rts)
+  if (not_repeat) {
+    output <- uid
+  }
+  
+  original_uid_exists = any(str_split(repeat_rts, ',')[[1]] %in% str_split(intersections, ',')[[1]])
+  
+  original_uid = str_split(repeat_rts, ',')[[1]][
+    which(str_split(repeat_rts, ',')[[1]] %in% str_split(intersections, ',')[[1]])
+    ]
+  
+  if (original_uid_exists & !not_repeat) {
+    output <- original_uid
+  }
+  
+  oldest_new_uid = get_earliest_uid(ungroup(new_data), idx, self_intersection_indices)
+  
+  if (!original_uid_exists) {
+    output <- oldest_new_uid
+  }
+  
+  return(
+    output
+  )
+}
+
 merge_data = function(new_data, edited_file) {
   
   if (file.exists(edited_file)) {
     
-    overlapping_data = read_sf(edited_file) |>
-      select(all_of(c(!!!required_fields)),
-             all_of(c(!!!generated_fields[which(!generated_fields %in% c('ContributionDate'))])),
-             any_of(c(!!!optional_fields)),
-             all_of(c(!!!new_fields)),
-             seed,
-             Intersections = matches('^I.+t', ignore.case = FALSE),
-             RepeatRTS = matches('^R.+RTS', ignore.case = FALSE),
-             AccidentalOverlap = matches('Ac.+O', ignore.case = FALSE))
+    overlapping_data = read_sf(edited_file)
     
-    new_data = new_data |>
-      full_join(overlapping_data |>
+    if (!class(overlapping_data$Area) %in% c('integer', 'numeric')) {
+      overlapping_data <- overlapping_data |>
+        mutate(Area = as.numeric(Area))
+    }
+    
+    new_data = new_data %>%
+      full_join(overlapping_data %>%
                   st_drop_geometry(),
-                by = colnames(new_data |>
-                                st_drop_geometry())) |>
-      mutate(UID = case_when(is.na(RepeatRTS) ~ UID,
-                             !is.na(RepeatRTS) ~ RepeatRTS)) |>
+                by = colnames(new_data %>%
+                                st_drop_geometry())) %>%
+      mutate(ContributionDate = format(Sys.time(), '%Y-%m-%d')) %>%
+      rowwise() %>%
+      mutate(
+        UID = update_uid(., UID, RepeatRTS, Intersections, idx, SelfIntersectionIndices)
+      ) %>%
       select(!matches('geometry')) # doesn't actually remove geometry column, but makes sure it is the last column after the join
     
   } else {
-    new_data = new_data |>
+    new_data = new_data %>%
       mutate(RepeatRTS = NA,
              MergedRTS = NA,
              StabilizedRTS = NA,
              AccidentalOverlap = NA,
+             ContributionDate = format(Sys.time(), '%Y-%m-%d'),
              .before = geometry)
     
     warning('No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.')
@@ -477,41 +536,41 @@ merge_data = function(new_data, edited_file) {
   
 }
 
-self_intersection = function(new_data) {
-  new_data = new_data %>%
-    mutate(ContributionDate = format(Sys.time(), '%Y-%m-%d')) %>%
-    mutate(
-      idx = seq(1:nrow(new_data)),
-      # get all intersections for each RTS feature (excluding itself)
-      SelfIntersectionIndices = map_chr(
-        st_intersects(x = new_data, remove_self = TRUE),
-        ~ str_flatten(.x, collapse = ',')
-      ),
-      SelfAdjacentIndices = map_chr(
-        st_touches(x = new_data, remove_self = TRUE),
-        ~ str_flatten(.x, collapse = ',')
-      ),
-      SelfIntersectionIndices = case_when(
-        str_length(SelfAdjacentIndices) > 0 ~ '',
-        TRUE ~ SelfIntersectionIndices
-      ),
-      UID = case_when(
-        str_length(
-          SelfIntersectionIndices
-        ) == 0 | UID == RepeatRTS ~ UID,
-        str_length(
-          SelfIntersectionIndices
-        ) > 0 ~ get_earliest_uid(., 
-                                 idx,
-                                 SelfIntersectionIndices)
-      ),
-      .after = RepeatRTS
-    ) |>
-    select(-SelfAdjacentIndices)
-  
-  return(new_data)
-  
-}
+# self_intersection = function(new_data) {
+#   new_data = new_data %>%
+#     mutate(ContributionDate = format(Sys.time(), '%Y-%m-%d')) %>%
+#     mutate(
+#       idx = seq(1:nrow(new_data)),
+#       # get all intersections for each RTS feature (excluding itself)
+#       SelfIntersectionIndices = map_chr(
+#         st_intersects(x = new_data, remove_self = TRUE),
+#         ~ str_flatten(.x, collapse = ',')
+#       ),
+#       SelfAdjacentIndices = map_chr(
+#         st_touches(x = new_data, remove_self = TRUE),
+#         ~ str_flatten(.x, collapse = ',')
+#       ),
+#       SelfIntersectionIndices = remove_adjacent_polys(
+#         SelfIntersectionIndices,
+#         SelfAdjacentIndices
+#       ),
+#       UID = case_when(
+#         str_length(
+#           SelfIntersectionIndices
+#         ) == 0 | UID == RepeatRTS ~ UID,
+#         str_length(
+#           SelfIntersectionIndices
+#         ) > 0 ~ get_earliest_uid(., 
+#                                  idx,
+#                                  SelfIntersectionIndices)
+#       ),
+#       .after = RepeatRTS
+#     ) |>
+#     select(-SelfAdjacentIndices)
+#   
+#   return(new_data)
+#   
+# }
 
 output = function(
     new_data,
@@ -542,13 +601,13 @@ output = function(
       
     } else {
       
-      rts_data = rts_data |>
+      main_data = main_data |>
         add_empty_columns(
           names(new_fields)
         ) |>
         select(all_of(all_fields))
       
-      updated_data = rts_data |>
+      updated_data = main_data |>
         rbind(new_data)
       
       st_write(updated_data,

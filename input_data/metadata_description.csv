@@ -1,0 +1,14 @@
+FullColumnName,AbbreviatedColumnName,Format,Required,ColumnDescription
+CentroidLat,CntrdLt,Decimal Degrees,True,Polygon centroid latitude
+CentroidLon,CntrdLn,Decimal Degrees,True,Polygon centroid longitude
+RegionName,ReginNm,String,True,Name of the geographical region
+CreatorLab,CretrLb,String,True,Data creator and associated organization
+ContributionDate,CntrbtD,DD-MM-YYYY,True,Date of commitment to the main branch
+BaseMapDate,BasMpDt,DD-MM-YYYY,True,"Date of the base map used for RTS delineation, range separated by comma"
+BaseMapSource,BsMpSrc,String,True,Name of the satellite sensor used for RTS delineation
+BaseMapResolution,BsMpRsl,Number (meters),True,Resolution of the imagery used for RTS delineation
+TrainClass,TrnClss,String,True,'Positive’ for genuine RTS and ‘Negative’ for background
+UUID,UUID,36-character alphanumeric string,True,Unique identifier generated using uuid5 by concatenating all mandatory metadata fields
+StabilizedRTS,StblRTS,String,False,UUIDs of intersecting stabilized RTS scars
+MergedRTS,MrgdRTS,String,False,UUIDs of intersecting merged RTS
+Area,Area,Number (m2),False,Area of the RTS polygon

@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "ARTS_main_dataset",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::3413" } },
+"features": [
+{ "type": "Feature", "properties": { "CentroidLat": null, "CentroidLon": null, "RegionName": null, "CreatorLab": null, "BaseMapDate": null, "BaseMapSource": null, "BaseMapResolution": null, "TrainClass": null, "LabelType": null, "MergedRTS": null, "StabilizedRTS": null, "ContributionDate": null, "UID": null, "BaseMapID": null, "Area": null }, "geometry": { "type": "GeometryCollection", "geometries": [ ] } }
+]
+}
