@@ -307,7 +307,8 @@ preprocessing = function(
     calculate_centroid
     ) {
   
-  new_data = read_sf(new_data_filepath)
+  new_data = read_sf(new_data_filepath) |>
+    distinct() # remove duplicated rows
   
   # convert to EPSG:3413 if necessary
   if (st_crs(new_data) != st_crs(3413)) {
