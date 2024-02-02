@@ -109,7 +109,9 @@ check_intersection_info = function(df, new_data_file, base_dir) {
 get_earliest_uid = function(new_data, uid_col, self_intersections_col) {
   
   indices = c(uid_col,
-               as.numeric(split_string_to_vector(self_intersections_col)))
+              split_string_to_vector(self_intersections_col))
+  
+  indices = indices[!is.na(indices) & indices != '']
   
   id = new_data |>
     filter(UID %in% indices) |>
