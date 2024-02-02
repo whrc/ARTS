@@ -86,7 +86,7 @@ def get_earliest_uid(polygon, new_data):
     @return `UID` from feature with earliest `BaseMapDate` for features in `new_data` that overlap each other.
     '''
     uids = [polygon['UID']] + \
-        [x for x in polygon['SelfIntersections'].split(',')]
+        [x for x in polygon['SelfIntersections'].split(',') if x != '']
 
     new_data = new_data[new_data.UID.isin(uids)]
 
