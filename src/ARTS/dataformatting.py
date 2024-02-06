@@ -499,7 +499,7 @@ def merge_data(new_data, edited_file):
     if Path.exists(Path(edited_file)):
         overlapping_data = (
             gpd.read_file(edited_file)
-            .filter(items=['UID', 'Intersections', 'SelfIntersections', 'RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'])
+            .drop('geometry', axis = 1)
         )
         
         for column in ['Intersections', 'SelfIntersections', 'RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
@@ -510,7 +510,7 @@ def merge_data(new_data, edited_file):
         new_data = pd.merge(new_data,
                             overlapping_data,
                             how='outer',
-                            on=['UID', 'Intersections', 'SelfIntersections'])
+                            on=[item for item in list(new_data.columns) if item != 'geometry'])
 
         for column in ['RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
             new_data[column] = new_data[column].astype(str)
@@ -587,6 +587,7 @@ def seed_gen(new_data):
         lambda row: ''.join(row.values.astype(str)),
         axis=1
     ))
+
     return new_data
 
 

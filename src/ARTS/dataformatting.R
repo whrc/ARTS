@@ -557,9 +557,7 @@ merge_data = function(new_data, edited_file) {
   
   if (file.exists(edited_file)) {
     
-    overlapping_data = read_sf(edited_file) |>
-      select(UID, Intersections, SelfIntersections, RepeatRTS, MergedRTS,
-             NewRTS, StabilizedRTS, AccidentalOverlap, UnknownRelationship)
+    overlapping_data = read_sf(edited_file)
     
     if ('Area' %in% colnames(overlapping_data)) {
       if (!class(overlapping_data$Area) %in% c('integer', 'numeric')) {
@@ -571,7 +569,8 @@ merge_data = function(new_data, edited_file) {
     new_data = new_data %>%
       full_join(overlapping_data %>%
                   st_drop_geometry(),
-                by = c('UID', 'Intersections', 'SelfIntersections')) %>%
+                by = colnames(new_data |>
+                                st_drop_geometry())) %>%
       mutate(ContributionDate = format(Sys.time(), '%Y-%m-%d')) %>%
       rowwise() %>%
       mutate(
