@@ -16,6 +16,7 @@ get_unclassified_intersections = function(
     StabilizedRTS,
     NewRTS,
     MergedRTS,
+    SplitRTS,
     AccidentalOverlap,
     UnknownRelationship) {
   
@@ -31,6 +32,7 @@ get_unclassified_intersections = function(
     str_split(StabilizedRTS, ',')[[1]],
     str_split(NewRTS, ',')[[1]],
     str_split(MergedRTS, ',')[[1]],
+    str_split(SplitRTS, ',')[[1]],
     str_split(AccidentalOverlap, ',')[[1]],
     str_split(UnknownRelationship, ',')[[1]]
   )
@@ -58,6 +60,7 @@ check_intersection_info = function(df, new_data_file, base_dir) {
         StabilizedRTS,
         NewRTS,
         MergedRTS,
+        SplitRTS,
         AccidentalOverlap,
         UnknownRelationship
       )
@@ -370,7 +373,7 @@ preprocessing = function(
         ),
         any_of(
           c(!!!setNames(
-            c('MrgdRTS', 'NewRTS', 'StblRTS', 'UnknwnR', 'ContrDt', 'UID'),
+            c('MrgdRTS', 'SplitRTS', 'NewRTS', 'StblRTS', 'UnknwnR', 'ContrDt', 'UID'),
             generated_fields)
           )
         ),
@@ -479,6 +482,11 @@ check_intersections = function(new_data, main_data, out_path, demo) {
         mutate(MergedRTS = NA,
                .before = geometry)
     }
+    if (!'SplitRTS' %in% colnames(overlapping_data)) {
+      overlapping_data = overlapping_data %>%
+        mutate(SplitRTS = NA,
+               .before = geometry)
+    }
     if (!'NewRTS' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(NewRTS = NA,
@@ -538,14 +546,15 @@ update_uid = function(new_data, uid, repeat_rts, intersections, self_intersectio
     which(str_split(repeat_rts, ',')[[1]] %in% str_split(intersections, ',')[[1]])
     ]
   
-  if (original_uid_exists & !not_repeat) {
-    output <- original_uid
-  }
-  
-  oldest_new_uid = get_earliest_uid(ungroup(new_data), uid, self_intersections)
-  
-  if (!original_uid_exists & !not_repeat) {
-    output <- oldest_new_uid
+  if (!not_repeat) {
+    
+    if (original_uid_exists) {
+      output <- original_uid
+    } else {
+      oldest_new_uid = get_earliest_uid(ungroup(new_data), uid, self_intersections)
+      output <- oldest_new_uid
+    }
+    
   }
   
   return(
@@ -582,6 +591,7 @@ merge_data = function(new_data, edited_file) {
     new_data = new_data %>%
       mutate(RepeatRTS = NA,
              MergedRTS = NA,
+             SplitRTS = NA,
              NewRTS = NA,
              StabilizedRTS = NA,
              AccidentalOverlap = NA,
