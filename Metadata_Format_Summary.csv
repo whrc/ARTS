@@ -9,7 +9,8 @@ BaseMapResolution,Number,True,Resolution of the imagery used for RTS delineation
 TrainClass,String,True,'Positive’ for genuine RTS and ‘Negative’ for background
 LabelType,String,True,"Type of digitisation, e.g. ‘Polygon’, ‘BoundingBox’"
 MergedRTS,String,Generated,UIDs of intersecting RTS that merged into one RTS
-NewRTS,String,Generated,UIDS of intersecting RTS that formed on top of a stabilized RTS scar
+SplitRTS,String,Generated,UID of RTS that split into multiple RTS
+NewRTS,String,Generated,UIDs of intersecting RTS that formed on top of a stabilized RTS scar
 StabilizedRTS,String,Generated,UIDs of intersecting stabilized RTS scars
 UnknownRelationship,String,Generated,UIDs of intersecting RTS with unknown relationship
 ContributionDate,String,Generated,Date of the contribution to the ARTS main file in YYYY-MM-DD
