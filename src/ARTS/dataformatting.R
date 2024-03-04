@@ -109,15 +109,56 @@ check_intersection_info = function(df, new_data_file, base_dir) {
 
 # get_earliest_uid
 # Return `UID` from feature with earliest `BaseMapDate` for features in `new_data` that overlap eachother.
-get_earliest_uid = function(new_data, uid_col, self_intersections_col) {
+get_earliest_uid = function(new_data, uid_col, repeat_rts_col) {
   
-  indices = c(uid_col,
-              split_string_to_vector(self_intersections_col))
+  repeat_uids = c(uid_col,
+                  split_string_to_vector(repeat_rts_col))
   
-  indices = indices[!is.na(indices) & indices != '']
+  repeat_uids = repeat_uids[!is.na(repeat_uids) & repeat_uids != '']
+  
+  find_more_uids = TRUE
+  
+  # In some cases with multiple self intersections from multiple years, there
+  # may be newer delineations which don't overlap the oldest delineation. This
+  # while loop looks for uids of polygons that overlap the overlapping polygons
+  # of the polygon of interest.
+  
+  # Unfortunately, this is repeated for each row of the dataframe, rather than 
+  # being calculated once for each "group" of repeated RTS. This could be 
+  # improved in the future.
+  while (find_more_uids) {
+    
+    start_length = length(repeat_uids)
+    
+    repeat_uids = unique(
+      c(
+        repeat_uids,
+        map(
+          new_data |>
+            filter(UID %in% repeat_uids) |>
+            pull(RepeatRTS),
+          ~ split_string_to_vector(.x)
+        ) |>
+          reduce(c)
+      )
+    )
+    
+    repeat_uids = repeat_uids[!is.na(repeat_uids) & repeat_uids != '']
+    
+    end_length = length(repeat_uids)
+    
+    if (start_length < end_length) {
+      find_more_uids = TRUE
+    } else {
+      find_more_uids = FALSE
+    }
+    
+  }
+  
+  
   
   id = new_data |>
-    filter(UID %in% indices) |>
+    filter(UID %in% repeat_uids) |>
     mutate(StartDate = ymd(str_split(BaseMapDate, ',')[[1]][1])) |>
     filter(StartDate == min(StartDate)) |>
     pull(UID)
@@ -533,7 +574,7 @@ check_intersections = function(new_data, main_data, out_path, demo) {
   
 }
 
-update_uid = function(new_data, uid, repeat_rts, intersections, self_intersections) {
+update_uid = function(new_data, uid, repeat_rts, intersections) {
   
   not_repeat = is.na(repeat_rts)
   if (not_repeat) {
@@ -551,7 +592,7 @@ update_uid = function(new_data, uid, repeat_rts, intersections, self_intersectio
     if (original_uid_exists) {
       output <- original_uid
     } else {
-      oldest_new_uid = get_earliest_uid(ungroup(new_data), uid, self_intersections)
+      oldest_new_uid = get_earliest_uid(ungroup(new_data), uid, repeat_rts)
       output <- oldest_new_uid
     }
     
@@ -575,6 +616,13 @@ merge_data = function(new_data, edited_file) {
       }
     }
     
+    if ('Area' %in% colnames(new_data)) {
+      if (!class(new_data$Area) %in% c('integer', 'numeric')) {
+        new_data <- new_data |>
+          mutate(Area = as.numeric(Area))
+      }
+    }
+    
     new_data = new_data %>%
       full_join(overlapping_data %>%
                   st_drop_geometry(),
@@ -583,7 +631,7 @@ merge_data = function(new_data, edited_file) {
       mutate(ContributionDate = format(Sys.time(), '%Y-%m-%d')) %>%
       rowwise() %>%
       mutate(
-        UID = update_uid(., UID, RepeatRTS, Intersections, SelfIntersections)
+        UID = update_uid(., UID, RepeatRTS, Intersections)
       ) %>%
       select(!matches('geometry')) # doesn't actually remove geometry column, but makes sure it is the last column after the join
     
