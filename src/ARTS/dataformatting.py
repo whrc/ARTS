@@ -29,7 +29,7 @@ def check_intersection_info(df, new_data_file, base_dir, demo):
     """
      Checks that intersection information has been completed for every polygon.
      If there is an intersection reported in any row and the UID of that intersection has not been placed
-     into one of "RepeatRTS", "MergedRTS", "StabilizedRTS", "AccidentalOverlap", or "UnkownRelationship", the test fails.
+     into one of "RepeatRTS", "MergedRTS", "SplitRTS", "StabilizedRTS", "AccidentalOverlap", or "UnkownRelationship", the test fails.
 
      @param df - Dataframe containing information about RTS intersections and self - intersections.
     """
@@ -49,7 +49,7 @@ def check_intersection_info(df, new_data_file, base_dir, demo):
                                  + item5.split(',')
                                  + item6.split(','))))) 
             for item1, item2, item3, item4, item5, item6 
-            in zip(df.RepeatRTS, df.StabilizedRTS, df.NewRTS, df.MergedRTS, df.AccidentalOverlap, df.UnknownRelationship)
+            in zip(df.RepeatRTS, df.StabilizedRTS, df.NewRTS, df.MergedRTS, df.SplitRTS, df.AccidentalOverlap, df.UnknownRelationship)
         ]
     
     df['unclassified_intersections'] = [
@@ -366,7 +366,7 @@ def preprocessing(new_data_filepath, required_fields, generated_fields, optional
                     )},
                 **{key: value for key, value
                    in zip(
-                       ['MrgdRTS', 'StblRTS', 'ContrDt', 'UID'],
+                       ['MrgdRTS', 'SplitRTS', 'StblRTS', 'ContrDt', 'UID'],
                        generated_fields,
                    )},
                 **{key: value for key, value
@@ -461,6 +461,8 @@ def check_intersections(new_data, main_data, out_path, demo):
             overlapping_data['RepeatRTS'] = ['']*overlapping_data.shape[0]
         if 'MergedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
+        if 'SplitRTS' not in list(overlapping_data.columns.values):
+            overlapping_data['SplitRTS'] = ['']*overlapping_data.shape[0]
         if 'NewRTS' not in list(overlapping_data.columns.values):
             overlapping_data['NewRTS'] = ['']*overlapping_data.shape[0]
         if 'StabilizedRTS' not in list(overlapping_data.columns.values):
@@ -502,7 +504,7 @@ def merge_data(new_data, edited_file):
             .drop('geometry', axis = 1)
         )
         
-        for column in ['Intersections', 'SelfIntersections', 'RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
+        for column in ['Intersections', 'SelfIntersections', 'RepeatRTS', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
             overlapping_data[column] = overlapping_data[column].astype(str)
             overlapping_data[column].loc[overlapping_data[column] == 'nan'] = ''
             overlapping_data = overlapping_data.replace(to_replace = 'None', value = '')
@@ -512,7 +514,7 @@ def merge_data(new_data, edited_file):
                             how='outer',
                             on=[item for item in list(new_data.columns) if item != 'geometry'])
 
-        for column in ['RepeatRTS', 'MergedRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
+        for column in ['RepeatRTS', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
             new_data[column] = new_data[column].astype(str)
             new_data[column].loc[new_data[column] == 'nan'] = ''
         
@@ -545,6 +547,7 @@ def merge_data(new_data, edited_file):
     else:
         new_data['RepeatRTS'] = ['']*new_data.shape[0]
         new_data['MergedRTS'] = ['']*new_data.shape[0]
+        new_data['SplitRTS'] = ['']*new_data.shape[0]
         new_data['NewRTS'] = ['']*new_data.shape[0]
         new_data['StabilizedRTS'] = ['']*new_data.shape[0]
         new_data['AccidentalOverlap'] = ['']*new_data.shape[0]
