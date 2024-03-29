@@ -278,11 +278,11 @@ def check_train_class(train_class):
 
     @param train_class - The column that contains the training class.
     '''
-    correct_type = type(train_class[0]) == str
+    correct_type = all(x in ['Negative', 'Positive'] for x in train_class)
     missing_values = (train_class == '').values.any()
 
     if not correct_type:
-        raise ValueError('The TrainClass column is not a string.')
+        raise ValueError('The TrainClass column contains values other than "Negative" and "Positive".')
     elif missing_values:
         raise ValueError('The TrainClass column is missing values.')
 

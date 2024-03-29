@@ -69,7 +69,8 @@ check_intersection_info = function(df, new_data_file, base_dir) {
     mutate(
       int_info_complete = case_when(
         (
-          is.na(unclassified_intersections) | str_length(unclassified_intersections)==0
+          is.na(unclassified_intersections) | 
+            str_length(unclassified_intersections) == 0
         )  ~ TRUE,
         TRUE ~ FALSE
       )
@@ -301,11 +302,11 @@ check_resolution = function(resolution) {
 
 check_train_class = function(train_class) {
   
-  correct_type = class(train_class) == 'character'
+  correct_values = all(train_class %in% c('Negative', 'Positive'))
   missing_values = any(is.na(train_class))
   
   if (!correct_type) {
-    stop('The TrainClass column is not a string.')
+    stop('The TrainClass column contains values other than "Negative" and "Positive".')
   } else if (missing_values) {
     stop('The TrainClass column is missing values.')
   }
@@ -317,9 +318,9 @@ check_label_type = function(label_type) {
   missing_values = any(is.na(label_type))
   
   if (!correct_type) {
-    stop('The TrainClass column is not a string.')
+    stop('The LabelType column is not a string.')
   } else if (missing_values) {
-    stop('The TrainClass column is missing values.')
+    stop('The LabelType column is missing values.')
   }
 }
 
