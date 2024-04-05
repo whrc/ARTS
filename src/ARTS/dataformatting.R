@@ -9,15 +9,19 @@ add_empty_columns = function(df, column_names) {
   return(df)
 }
 
+# get_unclassified_intersections
+# used in check_intersection_info
 get_unclassified_intersections = function(
     Intersections, 
     SelfIntersections, 
     RepeatRTS, 
+    RepeatNegative,
     StabilizedRTS,
     NewRTS,
     MergedRTS,
     SplitRTS,
     AccidentalOverlap,
+    FalseNegative,
     UnknownRelationship) {
   
   all_intersections = c(
@@ -29,11 +33,13 @@ get_unclassified_intersections = function(
   
   all_classifications = c(
     str_split(RepeatRTS, ',')[[1]],
+    str_split(RepeatNegative, ',')[[1]],
     str_split(StabilizedRTS, ',')[[1]],
     str_split(NewRTS, ',')[[1]],
     str_split(MergedRTS, ',')[[1]],
     str_split(SplitRTS, ',')[[1]],
     str_split(AccidentalOverlap, ',')[[1]],
+    str_split(FalseNegative, ',')[[1]],
     str_split(UnknownRelationship, ',')[[1]]
   )
   all_classifications = all_classifications[which(all_classifications != '')]
@@ -57,11 +63,13 @@ check_intersection_info = function(df, new_data_file, base_dir) {
         Intersections,
         SelfIntersections,
         RepeatRTS, 
+        RepeatNegative,
         StabilizedRTS,
         NewRTS,
         MergedRTS,
         SplitRTS,
         AccidentalOverlap,
+        FalseNegative,
         UnknownRelationship
       )
     ) |>
@@ -69,7 +77,8 @@ check_intersection_info = function(df, new_data_file, base_dir) {
     mutate(
       int_info_complete = case_when(
         (
-          is.na(unclassified_intersections) | str_length(unclassified_intersections)==0
+          is.na(unclassified_intersections) | 
+            str_length(unclassified_intersections) == 0
         )  ~ TRUE,
         TRUE ~ FALSE
       )
@@ -301,11 +310,11 @@ check_resolution = function(resolution) {
 
 check_train_class = function(train_class) {
   
-  correct_type = class(train_class) == 'character'
+  correct_values = all(train_class %in% c('Negative', 'Positive'))
   missing_values = any(is.na(train_class))
   
-  if (!correct_type) {
-    stop('The TrainClass column is not a string.')
+  if (!correct_values) {
+    stop('The TrainClass column contains values other than "Negative" and "Positive".')
   } else if (missing_values) {
     stop('The TrainClass column is missing values.')
   }
@@ -317,9 +326,9 @@ check_label_type = function(label_type) {
   missing_values = any(is.na(label_type))
   
   if (!correct_type) {
-    stop('The TrainClass column is not a string.')
+    stop('The LabelType column is not a string.')
   } else if (missing_values) {
-    stop('The TrainClass column is missing values.')
+    stop('The LabelType column is missing values.')
   }
 }
 
@@ -339,11 +348,16 @@ run_formatting_checks = function(df) {
 
 # split_string_to_vector
 split_string_to_vector = function(UID_string) {
-  UID_string |>
+  uids = UID_string |>
     str_split(',') |>
     pluck(1)
+  
+  uids = uids[uids != '']
+  
+  return(uids)
 }
 
+# preprocessing
 preprocessing = function(
     new_data_filepath,
     required_fields,
@@ -414,7 +428,7 @@ preprocessing = function(
         ),
         any_of(
           c(!!!setNames(
-            c('MrgdRTS', 'SplitRTS', 'NewRTS', 'StblRTS', 'UnknwnR', 'ContrDt', 'UID'),
+            c('MrgdRTS', 'SplitRTS', 'NewRTS', 'StblRTS', 'RptNgtv', 'FlsNgtv', 'UnknwnR', 'ContrDt', 'UID'),
             generated_fields)
           )
         ),
@@ -518,21 +532,31 @@ check_intersections = function(new_data, main_data, out_path, demo) {
         mutate(RepeatRTS = NA,
                .before = geometry)
     }
+    
+    if (!'RepeatNegative' %in% colnames(overlapping_data)) {
+      overlapping_data = overlapping_data %>%
+        mutate(RepeatNegative = NA,
+               .before = geometry)
+    }
+    
     if (!'MergedRTS' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(MergedRTS = NA,
                .before = geometry)
     }
+    
     if (!'SplitRTS' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(SplitRTS = NA,
                .before = geometry)
     }
+    
     if (!'NewRTS' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(NewRTS = NA,
                .before = geometry)
     }
+    
     if (!'StabilizedRTS' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(StabilizedRTS = NA,
@@ -543,14 +567,18 @@ check_intersections = function(new_data, main_data, out_path, demo) {
       overlapping_data = overlapping_data %>%
         mutate(AccidentalOverlap = NA,
                .before = geometry)
-      
     }
    
+    if (!'FalseNegative' %in% colnames(overlapping_data)) {
+      overlapping_data = overlapping_data %>%
+        mutate(FalseNegative = NA,
+               .before = geometry)
+    }
+    
     if (!'UnknownRelationship' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(UnknownRelationship = NA,
                .before = geometry)
-      
     }
     
     print(overlapping_data)
@@ -566,8 +594,6 @@ check_intersections = function(new_data, main_data, out_path, demo) {
       
     }
    
-  } else {
-    print('There were no overlapping polygons. Proceed to the next code chunk without any manual editing.')
   }
   
   return(new_data)
@@ -638,11 +664,13 @@ merge_data = function(new_data, edited_file) {
   } else {
     new_data = new_data %>%
       mutate(RepeatRTS = NA,
+             RepeatNegative = NA,
              MergedRTS = NA,
              SplitRTS = NA,
              NewRTS = NA,
              StabilizedRTS = NA,
              AccidentalOverlap = NA,
+             FalseNegative = NA,
              UnknownRelationship = NA,
              ContributionDate = format(Sys.time(), '%Y-%m-%d'),
              .before = geometry)
@@ -654,6 +682,33 @@ merge_data = function(new_data, edited_file) {
   
 }
 
+# remove_new_false_negatives
+remove_new_false_negatives = function(new_data) {
+  
+  new_data = new_data |>
+    filter(!(TrainClass == 'Negative' & str_length(FalseNegative) > 0))
+  
+  return(new_data)
+  
+}
+
+# remove_old_false_negatives
+remove_old_false_negatives = function(new_data, main_data) {
+  
+  uids = new_data |>
+    filter(TrainClass == 'Positive' & str_length(FalseNegative) > 0) |>
+    pull(FalseNegative)
+  
+  main_data = main_data |>
+    filter(!(UID %in% uids & TrainClass == 'Negative'))
+  
+  return(main_data)
+  
+  return(new_data)
+  
+}
+
+# output
 output = function(
     new_data,
     main_data,
@@ -663,7 +718,8 @@ output = function(
     new_data_file,
     updated_filepath,
     separate_file,
-    demo
+    demo,
+    updated_main
     ) {
   if (!demo) {
     
@@ -688,11 +744,17 @@ output = function(
                filepath, 
                append = FALSE)
       
+      if (updated_main) {
+        st_write(main_data,
+                 paste(base_dir, 'output/ARTS_main_dataset_updated.geojson'),
+                 sep = '/')
+      }
+      
     } else {
       
-      main_data = main_data |>
+     main_data = main_data |>
         add_empty_columns(
-          names(new_fields)
+          new_fields
         ) |>
         select(all_of(all_fields))
       
@@ -700,7 +762,7 @@ output = function(
         rbind(new_data)
       
       if (!file.exists(
-        updated_filepath
+        dir.create(updated_filepath)
       )) {
         updated_filepath
       }
