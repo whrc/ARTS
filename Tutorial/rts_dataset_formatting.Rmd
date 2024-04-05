@@ -54,7 +54,7 @@ dataset_version = 'v.1.0.0' # set this to the most recent version
 if (demo) {
   
   # RTS data set to be processed
-  your_rts_dataset_file = 'rts_dataset_test_polygons_new.geojson'
+  your_rts_dataset_file = 'test_polygons_new.geojson'
   your_rts_dataset_filepath = paste(
     base_dir,
     'Tutorial/mock_dataset/input_data',
@@ -65,7 +65,7 @@ if (demo) {
   # ARTS main dataset to be appended
   ARTS_main_dataset_filepath = paste(
     base_dir,
-    'Tutorial/mock_dataset/input_data/rts_dataset_test_polygons_current.geojson',
+    'Tutorial/mock_dataset/input_data/test_polygons_current.geojson',
     sep = '/'
   )
   
@@ -110,10 +110,10 @@ Provide the names of any metadata fields in your new file that are not already i
 
 # Shapefile example:
 # new_fields_abbreviated = c('CstmCl1', 'CstmCl2')
-# new_fields = c('CustomColumn1' = 'CstmCl1', 'CustomColumn2' = 'CstmCl2')
+# new_fields = c('CustomColumn1', 'CustomColumn2')
 
 new_fields = c()
-new_fields_abbreviated = c()
+# new_fields_abbreviated = c()
 ```
 
 Have you already created RTS centroid columns, or would you like them to be created within this script? Provide either TRUE, if the columns do not exist yet, or FALSE, if you have already created them:
@@ -224,7 +224,7 @@ if (demo) {
     base_dir,
     'Tutorial/mock_dataset/output',
     paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], 
-           '_overlapping_polygons.geojson'
+           '_overlapping.geojson'
            ),
     sep = '/'
   )
@@ -233,7 +233,7 @@ if (demo) {
     base_dir,
     'output',
     paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], 
-           '_overlapping_polygons.geojson'
+           '_overlapping.geojson'
            ),
     sep = '/'
   )
@@ -247,7 +247,7 @@ new_dataset = check_intersections(
 )
 ```
 
-At this point, you will need to manually check all polygons with intersections against the polygons in the official RTS data set and polygons with self intersections against themselves in your preferred GIS software and save the output to `r paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_overlapping_polygons_edited.geojson')` (press Ctrl+Enter while cursor is in the preceding in-line code chunk to see the actual file name, rather than the code to produce the file name).  When possible/necessary, try to find imagery that matches the date of the intersecting polygons - this may require contacting the lab that did the original delineation. Visual examples of the following rules are stored in './Tutorial/RTS Relationship Guidelines.pdf'
+At this point, you will need to manually check all polygons with intersections against the polygons in the official RTS data set and polygons with self intersections against themselves in your preferred GIS software and save the output to `r paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_overlapping_edited.geojson')` (press Ctrl+Enter while cursor is in the preceding in-line code chunk to see the actual file name, rather than the code to produce the file name).  When possible/necessary, try to find imagery that matches the date of the intersecting polygons - this may require contacting the lab that did the original delineation. Visual examples of the following rules are stored in './Tutorial/RTS Relationship Guidelines.pdf'
 
 Your job is to inspect each of the previously published polygons listed in the 'Intersections' column compared to the new RTS feature and manually copy and paste the UIDs from the 'Intersections' column into the 'RepeatRTS', 'RepeatNegative', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', 'FalseNegative', or 'UnknownRelationship' based on the relationship between the two polygons. Similarly, you need to inspect each of the polygons listed in the 'SelfIntersections' column and copy and paste the UIDs from the 'SelfIntersections' column into the 'RepeatRTS', 'RepeatNegative', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', 'FalseNegative', or 'UnknownRelationship' based on the relationship between the two polygons. The instructions are slightly different for negative and positive RTS features in the new data set. For postitive RTS features, use the following rules:
 
@@ -277,7 +277,7 @@ For negative bounding boxes (no RTS inside the bounding box), use the following 
 
 - Paste the UID into the FalseNegative column when there is an RTS feature in the 'Intersections' or 'SelfIntersections' column that predates the negative bounding box in the current row. 
 
-When this is done, each of the UIDs in the 'Intersections' and 'SelfIntersections' columns should have been copied into one (and only one) of the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', or 'UnknownRelationship' columns.
+When this is done, each of the UIDs in the 'Intersections' and 'SelfIntersections' columns should have been copied into one (and only one) of the 'RepeatRTS', 'RepeatNegative', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', 'FalseNegative', and 'UnknownRelationship' columns.
 
 
 # Load Manually Edited File and Join to New Data
@@ -291,7 +291,7 @@ if (demo) {
     'Tutorial/mock_dataset/output',
     paste0(
       str_split(your_rts_dataset_file, '\\.')[[1]][1], 
-      '_overlapping_polygons_edited.geojson'
+      '_overlapping_edited.geojson'
     ), 
     sep = '/'
   )
@@ -301,7 +301,7 @@ if (demo) {
     'output',
     paste0(
       str_split(your_rts_dataset_file, '\\.')[[1]][1], 
-      '_overlapping_polygons_edited.geojson'
+      '_overlapping_edited.geojson'
     ), 
     sep = '/'
   )
@@ -309,6 +309,25 @@ if (demo) {
 
 merged_data = merge_data(new_dataset, edited_filepath)
 ```
+
+
+# Remove False Negatives
+
+```{r}
+merged_data = merged_data |>
+  remove_new_false_negatives()
+
+if (nrow(
+  merged_data |>
+    filter(TrainClass == 'Positive' & str_length(FalseNegative) > 0)) > 0
+) {
+  ARTS_main_dataset = merged_data |>
+    remove_old_false_negatives(ARTS_main_dataset)
+  
+  updated_main = TRUE
+}
+```
+
 
 # Check Completeness of Intersection Information
 
@@ -356,7 +375,8 @@ output(formatted_data,
        your_rts_dataset_file,
        updated_ARTS_filepath,
        separate_file,
-       demo)
+       demo,
+       updated_main)
 ```
 
 Now you are ready to submit `r ifelse(separate_file == TRUE, paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_formatted.geojson'), rts_file)`!

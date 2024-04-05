@@ -47,9 +47,11 @@ def check_intersection_info(df, new_data_file, base_dir, demo):
                                  + item3.split(',') 
                                  + item4.split(',') 
                                  + item5.split(',')
-                                 + item6.split(','))))) 
-            for item1, item2, item3, item4, item5, item6 
-            in zip(df.RepeatRTS, df.StabilizedRTS, df.NewRTS, df.MergedRTS, df.SplitRTS, df.AccidentalOverlap, df.UnknownRelationship)
+                                 + item6.split(',')
+                                 + item7.split(',')
+                                 + item8.split(','))))) 
+            for item1, item2, item3, item4, item5, item6, item7, item8
+            in zip(df.RepeatRTS, df.RepeatNegative, df.StabilizedRTS, df.NewRTS, df.MergedRTS, df.SplitRTS, df.AccidentalOverlap, df.UnknownRelationship)
         ]
     
     df['unclassified_intersections'] = [
@@ -278,10 +280,10 @@ def check_train_class(train_class):
 
     @param train_class - The column that contains the training class.
     '''
-    correct_type = all(x in ['Negative', 'Positive'] for x in train_class)
+    correct_values = all(x in ['Negative', 'Positive'] for x in train_class)
     missing_values = (train_class == '').values.any()
 
-    if not correct_type:
+    if not correct_values:
         raise ValueError('The TrainClass column contains values other than "Negative" and "Positive".')
     elif missing_values:
         raise ValueError('The TrainClass column is missing values.')
@@ -366,7 +368,7 @@ def preprocessing(new_data_filepath, required_fields, generated_fields, optional
                     )},
                 **{key: value for key, value
                    in zip(
-                       ['MrgdRTS', 'SplitRTS', 'StblRTS', 'ContrDt', 'UID'],
+                       ['MrgdRTS', 'SplitRTS', 'NewRTS', 'StblRTS', 'RptNgtv', 'FlsNgtv', 'UnknwnR', 'ContrDt', 'UID'],
                        generated_fields,
                    )},
                 **{key: value for key, value
@@ -459,6 +461,8 @@ def check_intersections(new_data, main_data, out_path, demo):
     if overlapping_data.shape[0] > 0:
         if 'RepeatRTS' not in list(overlapping_data.columns.values):
             overlapping_data['RepeatRTS'] = ['']*overlapping_data.shape[0]
+        if 'RepeatNegative' not in list(overlapping_data.columns.values):
+            overlapping_data['RepeatNegative'] = ['']*overlapping_data.shape[0]
         if 'MergedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
         if 'SplitRTS' not in list(overlapping_data.columns.values):
@@ -469,6 +473,8 @@ def check_intersections(new_data, main_data, out_path, demo):
             overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
         if 'AccidentalOverlap' not in list(overlapping_data.columns.values):
             overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
+        if 'FalsetNegative' not in list(overlapping_data.columns.values):
+            overlapping_data['FalseNegative'] = ['']*overlapping_data.shape[0]
         if 'UnknownRelationship' not in list(overlapping_data.columns.values):
             overlapping_data['UnknownRelationship'] = ['']*overlapping_data.shape[0]
 
@@ -504,7 +510,7 @@ def merge_data(new_data, edited_file):
             .drop('geometry', axis = 1)
         )
         
-        for column in ['Intersections', 'SelfIntersections', 'RepeatRTS', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
+        for column in ['Intersections', 'SelfIntersections', 'RepeatRTS', 'RepeatNegative', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'FalseNegative', 'UnknownRelationship'] :
             overlapping_data[column] = overlapping_data[column].astype(str)
             overlapping_data[column].loc[overlapping_data[column] == 'nan'] = ''
             overlapping_data = overlapping_data.replace(to_replace = 'None', value = '')
@@ -514,7 +520,7 @@ def merge_data(new_data, edited_file):
                             how='outer',
                             on=[item for item in list(new_data.columns) if item != 'geometry'])
 
-        for column in ['RepeatRTS', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'UnknownRelationship'] :
+        for column in ['RepeatRTS', 'RepeatNegative', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'FalseNegative', 'UnknownRelationship'] :
             new_data[column] = new_data[column].astype(str)
             new_data[column].loc[new_data[column] == 'nan'] = ''
         
@@ -546,17 +552,49 @@ def merge_data(new_data, edited_file):
 
     else:
         new_data['RepeatRTS'] = ['']*new_data.shape[0]
+        new_data['RepeatNegative'] = ['']*new_data.shape[0]
         new_data['MergedRTS'] = ['']*new_data.shape[0]
         new_data['SplitRTS'] = ['']*new_data.shape[0]
         new_data['NewRTS'] = ['']*new_data.shape[0]
         new_data['StabilizedRTS'] = ['']*new_data.shape[0]
         new_data['AccidentalOverlap'] = ['']*new_data.shape[0]
-        new_data["ContributionDate"] = datetime.today().strftime('%Y-%m-%d')
+        new_data['FalseNegative'] = ['']*new_data.shape[0]
+        new_data['ContributionDate'] = datetime.today().strftime('%Y-%m-%d')
 
         warnings.warn(
             "No manually edited file has been imported. This is okay if there were no overlapping polygons, but is a problem otherwise.")
 
     return new_data
+
+def remove_new_false_negatives(new_data) :
+    '''
+    Remove negative bounding boxes that actually contain RTS (i.e. False Negatives) from the new dataset.
+    
+    @param new_data - The new RTS data set
+    
+    @return New RTS dataset with all false negatives removed
+    '''
+    
+    new_data = new_data[~((new_data.TrainClass == 'Negative') & (new_data.FalseNegative.str.len() > 0))]
+    
+    return new_data
+
+
+def remove_old_false_negatives(main_data, new_data) :
+    '''
+    Remove negative bounding boxes that actually contain RTS (i.e. False Negatives) from the main ARTS dataset.
+    
+    @param new_data - The new RTS data set
+    @param main_data - The main ARTS data set
+    
+    @return Main RTS dataset with all false negatives removed
+    '''
+    
+    uids = new_data[(new_data.TrainClass == 'Positive') & (new_data.FalseNegative.str.len() > 0)].FalseNegative
+    
+    main_data = main_data[(main_data.UID.isin(uids)) & (main_data.TrainClass == 'Negative')]
+    
+    return main_data
 
 
 def seed_gen(new_data):
@@ -564,7 +602,7 @@ def seed_gen(new_data):
     Generate seeds for each row in a geopandas dataframe by concantenating all required fields as str
     The seed is used for UID generation
 
-    @param new_data - The new RTS data set.
+    @param new_data - The new RTS data set
 
     @return New dataframe with a new column 'seed' for UID generation
     '''
@@ -594,7 +632,7 @@ def seed_gen(new_data):
     return new_data
 
 
-def output(new_data, main_data, new_fields, all_fields, base_dir, new_data_file, updated_filepath, separate_file, demo):
+def output(new_data, main_data, new_fields, all_fields, base_dir, new_data_file, updated_filepath, separate_file, demo, updated_main):
     '''
     select the desired fields and save the geopandas dataframe to file
 
@@ -606,6 +644,7 @@ def output(new_data, main_data, new_fields, all_fields, base_dir, new_data_file,
     @param new_data_file - The file name of the new RTS dataset.
     @param updated_filepath - The file name of the main ARTS dataset.
     @param demo - Boolean. Are you running this script as a demo? 
+    @param updated_main - Boolean. Was the main ARTS dataset updated during processing?
 '''
 
     if demo == False:
@@ -619,6 +658,9 @@ def output(new_data, main_data, new_fields, all_fields, base_dir, new_data_file,
 
             new_data.to_file(filepath)
             print(str(filepath))
+
+            if updated_main:
+                main_data.to_file(base_dir / 'output/ARTS_main_dataset.geojson')
 
         else:
 
