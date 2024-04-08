@@ -20,7 +20,7 @@ source("../src/ARTS/dataformatting.R")
 Would you like to run this as a demo with the mock data set? Provide 'TRUE' (mock data demo) or 'FALSE' (actual data processing of a new contribution):
 
 ```{r}
-demo = TRUE
+demo = FALSE
 ```
 
 Before starting, copy your new RTS dataset (can be a shapefile or a geojson) into a directory called "input_data" within the directory in which you would like to work. If you do not change any code in the following code chunk, the default directory will be the directory up one level from the location of this script.
@@ -47,8 +47,8 @@ Provide the file name of the data:
 
 ```{r}
 # set this - if demo == TRUE, what this is set to doesn't matter
-your_file = 'new_data.geojson'  # set this
-dataset_version = 'v.1.0.0' # set this to the most recent version
+your_file = 'RTS_NESiberia_Runge_meta.shp'  # set this
+dataset_version = 'v.18.0.0' # set this to the most recent version
 
 # leave everything else in this chunk alone
 if (demo) {
@@ -111,6 +111,12 @@ Provide the names of any metadata fields in your new file that are not already i
 # Shapefile example:
 # new_fields_abbreviated = c('CstmCl1', 'CstmCl2')
 # new_fields = c('CustomColumn1' = 'CstmCl1', 'CustomColumn2' = 'CstmCl2')
+
+#new_fields = c('Status'='Status')
+#new_fields_abbreviated = c('Status')
+
+#new_fields = c('Notes'='Notes', 'Status'='Status')
+#new_fields_abbreviated = c('Notes', 'Status')
 
 new_fields = c()
 new_fields_abbreviated = c()
@@ -296,6 +302,7 @@ if (demo) {
     sep = '/'
   )
 }
+
 
 merged_data = merge_data(new_dataset, edited_filepath)
 ```
