@@ -325,6 +325,8 @@ if (nrow(
     remove_old_false_negatives(ARTS_main_dataset)
   
   updated_main = TRUE
+} else {
+  updated_main = FALSE
 }
 ```
 

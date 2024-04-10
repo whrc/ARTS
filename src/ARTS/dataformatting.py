@@ -651,11 +651,14 @@ def output(new_data, main_data, new_fields, all_fields, base_dir, new_data_file,
 
         if separate_file:
 
-            filepath = base_dir / 'python_output' / (
+            if not os.path.exists(base_dir / 'output'):
+                os.mkdir(base_dir / 'output')
+            
+            filepath = base_dir / 'output' / (
                 str(new_data_file).split('.', maxsplit=1)[
                     0] + "_formatted.geojson"
             )
-
+            
             new_data.to_file(filepath)
             print(str(filepath))
 
