@@ -761,10 +761,8 @@ output = function(
       updated_data = main_data |>
         rbind(new_data)
       
-      if (!file.exists(
+      if (!file.exists(updated_filepath)) {
         dir.create(updated_filepath)
-      )) {
-        updated_filepath
       }
       
       st_write(updated_data,
