@@ -26,7 +26,7 @@ Copy your new, pre-formatted RTS file into the **input_data** folder. Take a loo
    
 If using Python, ensure you are in the repository directory and activate the conda environment by running: `conda activate rts_dataset`. Open **Tutorial/rts_dataset_formatting.ipynb** in either Jupyter Notebook or Jupyter Lab by running: `jupyter notebook` or `jupyter lab`. Follow the instructions in the script to format your data set.
    
-If using R, open the project, **rts_dataset.Rproj**, in RStudio. Open **Tutorial/rts_dataset_formatting.Rmd**. Install any missing packages required to run the script. Follow the instructions in the script to format your data set. If you encounter issues during uuid generation, make sure that **rts_dataset** is specified as the python interpreter in the python section of project options (Tools > Project Options > Python).
+If using R, open the project, **ARTS.Rproj**, in RStudio. Open **Tutorial/rts_dataset_formatting.Rmd**. Install any missing packages required to run the script. Follow the instructions in the script to format your data set. If you encounter issues during uuid generation, make sure that **rts_dataset** is specified as the python interpreter in the python section of project options (Tools > Project Options > Python).
 
 ## Metadata Formatting Summary Example:
 
