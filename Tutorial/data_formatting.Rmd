@@ -151,9 +151,9 @@ optional_fields = metadata_format_summary |>
   pull(FieldName)
 
 all_fields = c(required_fields, 
-                generated_fields, 
-                optional_fields, 
-                new_fields)
+               generated_fields, 
+               optional_fields, 
+               new_fields)
 ```
 
 
