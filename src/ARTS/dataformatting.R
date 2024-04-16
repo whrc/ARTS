@@ -27,7 +27,7 @@ get_unclassified_intersections = function(
   all_intersections = c(
     str_split(Intersections, ',')[[1]],
     str_split(SelfIntersections, ',')[[1]]
-  ) |>
+    ) |>
     unique()
   all_intersections = all_intersections[which(all_intersections != '')]
   
@@ -47,7 +47,7 @@ get_unclassified_intersections = function(
   unclassified_intersections = str_flatten(
     all_intersections[which(!all_intersections %in% all_classifications)],
     ','
-  )
+    )
   
   return(unclassified_intersections)
   
@@ -199,8 +199,8 @@ remove_adjacent_polys = function(intersections, adjacent_polys) {
   adjacent_polys = str_split(adjacent_polys, ',')
   
   intersections = map2_chr(intersections,
-                           adjacent_polys,
-                           ~ str_flatten(.x[which(!.x %in% .y)], collapse = ','))
+                        adjacent_polys,
+                        ~ str_flatten(.x[which(!.x %in% .y)], collapse = ','))
   
   return(intersections)
   
@@ -365,7 +365,7 @@ preprocessing = function(
     optional_fields,
     new_fields,
     calculate_centroid
-) {
+    ) {
   
   new_data = read_sf(new_data_filepath) |>
     distinct() # remove duplicated rows
@@ -568,7 +568,7 @@ check_intersections = function(new_data, main_data, out_path, demo) {
         mutate(AccidentalOverlap = NA,
                .before = geometry)
     }
-    
+   
     if (!'FalseNegative' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(FalseNegative = NA,
@@ -593,7 +593,7 @@ check_intersections = function(new_data, main_data, out_path, demo) {
                   out_path))
       
     }
-    
+   
   }
   
   return(new_data)
@@ -611,7 +611,7 @@ update_uid = function(new_data, uid, repeat_rts, intersections) {
   
   original_uid = str_split(repeat_rts, ',')[[1]][
     which(str_split(repeat_rts, ',')[[1]] %in% str_split(intersections, ',')[[1]])
-  ]
+    ]
   
   if (!not_repeat) {
     
@@ -720,7 +720,7 @@ output = function(
     separate_file,
     demo,
     updated_main
-) {
+    ) {
   if (!demo) {
     
     if (separate_file) {
@@ -752,7 +752,7 @@ output = function(
       
     } else {
       
-      main_data = main_data |>
+     main_data = main_data |>
         add_empty_columns(
           new_fields
         ) |>
@@ -761,9 +761,7 @@ output = function(
       updated_data = main_data |>
         rbind(new_data)
       
-      if (!file.exists(
-        updated_filepath
-      )) {
+      if (!file.exists(updated_filepath)) {
         dir.create(updated_filepath)
       }
       
