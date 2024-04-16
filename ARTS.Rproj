@@ -13,5 +13,5 @@ RnwWeave: Sweave
 LaTeX: pdfLaTeX
 
 PythonType: conda
-PythonVersion: 3.11.5
-PythonPath: ~/miniconda3/envs/rts_dataset/bin/python3.11
+PythonVersion: 3.11.7
+PythonPath: C:/Users/jdean/Anaconda3/envs/rts_dataset/python.exe

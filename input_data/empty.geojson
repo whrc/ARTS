@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "empty",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::3413" } },
+"features": [
+{ "type": "Feature", "properties": { "CntrdLt": null, "CntrdLn": null, "ReginNm": null, "CretrLb": null, "CntrbtD": null, "BasMpDt": null, "BsMpSrc": null, "BsMpRsl": null, "TrnClss": null, "LablTyp": null }, "geometry": { "type": "Polygon", "coordinates": [ ] } }
+]
+}
