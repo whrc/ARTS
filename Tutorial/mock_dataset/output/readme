@@ -1,0 +1,15 @@
+Contents of the output folder:
+
+These are what the intermediate and final outputs of the rts_dataset_formatting script should be when demo = TRUE (R syntax is for TRUE to be in all caps, if you work in Python, just imagine it's in sentence case). The actual tutorial does not save these files, to ensure that no changes are introduced by accident.
+
+Final Output:
+test_polygons_current_updated.geojson - this is updated version of Tutorial/mock_dataset/input_data/test_polygons_current.geojson, which is saved if you set separate = TRUE. It should be one row shorter than the original (7 rows), due to the removal of a row which contains a FalseNegative bounding box.
+
+test_polygons_new_formatted.geojson - this is the formatted version of Tutorial/mock_dataset/input_data/test_polygons_new.geojson, which is saved if separate = TRUE.
+
+test_polygons_current.geojson - this is the updated version of Tutorial/mock_dataset/input_data/test_polygons_current.geojson with the new data rows included, which is saved if you set separate = FALSE. It should longer than the original (14 rows), despite the removal a row shich contains a FalseNegative bounding box.
+
+Intermediate Output:
+test_polygons_new_overlapping.geojson - this file is saved during `check_intersections()` and contains the data for any polygons in the new data set which intersect other polygons in either the new or main data sets. It contains empty columns which the user is required to fill in manually.
+
+test_polygons_new_overlapping_edited.geojson - this file is the manually edited version of test_polygons_new_overlapping.geojson which is read in during `merge_data()`.
