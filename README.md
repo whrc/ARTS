@@ -1,5 +1,7 @@
 # The Arctic Retrogressive Thaw Slumps Data Set (ARTS)
 
+[![DOI](https://zenodo.org/badge/730674203.svg)](https://zenodo.org/doi/10.5281/zenodo.10535025)
+
 This repository hosts:
 1. The ARTS main data set (current and historical versions)
 2. Tutorials (Jupyter Notebook or Rmarkdown) for preparing and formatting contributions to the ARTS data set (ARTS/Tutorial/data_formatting.ipynb or ARTS/Tutorial/data_formatting.Rmd)
