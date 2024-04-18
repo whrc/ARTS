@@ -10,6 +10,23 @@ This repository hosts:
 ![image](https://github.com/whrc/ARTS/blob/main/img/Yang_RTS_site_figure1_Dec_5_2023%20sm.jpg)
 
 ## Instructions for Use
+### Load ARTS from GitHub(Python)
+```
+import json, requests
+
+# input the ARTS version you want to load:
+ARTS_VERSION = 'v.0.0.20-alpha'
+
+# get the main dataset from GitHub
+github_url = 'https://raw.githubusercontent.com/whrc/ARTS/main/ARTS_main_dataset/'
+main_file_name = 'ARTS_main_dataset.geojson'
+url = github_url + ARTS_VERSION + '/' + main_file_name
+resp = requests.get(url)
+data = json.loads(resp.text)
+
+# verify the total number of features loaded:
+print('Number of features:',len(data['features']))
+```
 
 ### Steps for contributing to the ARTS data set
 **1. Fork this Respository and Clone Your Fork Onto Your Local Machine**
