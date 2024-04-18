@@ -65,6 +65,10 @@ If using R, open the project, **ARTS.Rproj**, in RStudio. Open **Tutorial/rts_da
 | ContributionDate  | String                           | auto-generated | Date of contribution to the ARTS main file in YYYY-MM-DD                                                                   |
 | UID               | 36-character alphanumeric string | auto-generated | Unique identifier generated using uuid5 by concatenating all 'Required-True' fields as a single string                   |
 
+## Related Publications
+Yang Y, Rodenhizer H, Rogers B M, et al. ARTS: a scalable data set for Arctic Retrogressive Thaw Slumps[R]. Copernicus Meetings, 2024.
+(https://meetingorganizer.copernicus.org/EGU24/EGU24-1365.html)
 
-Selected Data Examples
+## Selected Data Examples
 ![image](https://github.com/whrc/ARTS/blob/main/img/RTSfigure.jpg)
+
