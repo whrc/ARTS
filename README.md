@@ -10,7 +10,7 @@ This repository hosts:
 ![image](https://github.com/whrc/ARTS/blob/main/img/Yang_RTS_site_figure1_Dec_5_2023%20sm.jpg)
 
 ## Instructions for Use
-### Load ARTS from GitHub(Python)
+### Load the ARTS from GitHub (Python)
 ```
 import json, requests
 
@@ -23,12 +23,37 @@ main_file_name = 'ARTS_main_dataset.geojson'
 url = github_url + ARTS_VERSION + '/' + main_file_name
 resp = requests.get(url)
 data = json.loads(resp.text)
-
-# verify the total number of features loaded:
-print('Number of features:',len(data['features']))
 ```
+#### Inspect the first data entry
+```
+data['features'][0]
+```
+{'type': 'Feature',
+ 'properties': {'CentroidLat': '71.89659414',
+  'CentroidLon': '-120.66907384',
+  'RegionName': 'Banks Island, Inuvik Region, Canada',
+  'CreatorLab': 'TLantz, University of Victoria',
+  'BaseMapDate': '2020-07-05,2020-08-20',
+  'BaseMapSource': 'PlanetScope',
+  'BaseMapResolution': '3',
+  'TrainClass': 'Positive',
+  'LabelType': 'Polygon',
+  'MergedRTS': None,
+  'SplitRTS': None,
+  'NewRTS': None,
+  'StabilizedRTS': None,
+  'UnknownRelationship': None,
+  'ContributionDate': '2024-02-01',
+  'UID': '6aff1955-71f5-5fa5-97d1-d9e006e4ec5c',
+  'BaseMapID': None,
+  'Area': None,
+  'Notes': 'Headwall to the southwest'},
+ 'geometry': {'type': 'MultiPolygon',
+  'coordinates': [[[[-1915450.9802012292, -489398.3013161274],
+     [-1915494.2298194107, -489388.06834635197],
+    ...]]]}}
 
-### Steps for contributing to the ARTS data set
+## Steps for contributing to the ARTS data set
 **1. Fork this Respository and Clone Your Fork Onto Your Local Machine**
 
 Fork this repository using the **Fork** button in the top right corner in the browser. Next, clone your forked repository. From the forked repository on your github page, copy the URL using the **Code** button in the top right of the browser. From the command line (whichever shell you use for git), navigate to the directory in which you would like to clone the repository (this should be the directory in which you would like to work on this project), and run: `git clone {URL}`.
