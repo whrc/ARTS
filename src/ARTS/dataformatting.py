@@ -6,6 +6,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
+from tqdm.auto import tqdm
 
 
 def add_empty_columns(df, column_names):
@@ -109,8 +110,9 @@ def get_intersecting_uids(polygon, main_data):
 
     @return `UID` of overlapping or touching RTS.
     '''
-    intersections = [','.join(gpd.overlay(
-        polygon, main_data, how='intersection', keep_geom_type = True).UID_2)]
+    intersecting_df = polygon.sjoin(main_data, how = 'right', predicate = 'intersects')
+    intersecting_df = intersecting_df[~np.isnan(intersecting_df.index_left)]
+    intersections = [','.join(list(intersecting_df.UID_right))]
     return intersections
 
 
@@ -124,8 +126,9 @@ def get_touching_uids(polygon, main_data):
 
     @return `UID` of touching RTS.
     '''
-    adjacent_polys = [','.join([uid for rts, uid in zip(
-        main_data.geometry, main_data.UID) if polygon.geometry.touches(rts).reset_index()[0][0]])]
+    adjacent_df = polygon.sjoin(main_data, how = 'right', predicate = 'touches')
+    adjacent_df = adjacent_df[~np.isnan(adjacent_df.index_left)]
+    adjacent_polys = [','.join(list(adjacent_df.UID_right))]
     return adjacent_polys
 
 
@@ -321,6 +324,33 @@ def run_formatting_checks(df):
     print('Formatting looks good!')
 
 
+def check_uids(uid):
+    '''
+    Checks that the UID format is correct and not missing.
+
+    @param uid - The column which contains UIDs.
+    '''
+    correct_type = type(uid[0]) == str
+    missing_values = (uid == '').values.any()
+
+    split_uids = uid.str.split('-')
+    correct_lengths = np.all(
+        [[len(element) for element in item] == [8, 4, 4, 4, 12] for item in split_uids]
+    )
+    correct_components = np.all(
+        [np.all([bool(re.search('^[0-9a-zA-Z]+$', element)) for element in item]) for item in split_uids]
+    )
+
+    if not correct_type:
+        raise ValueError('The UID column is in the incorrect format (UUID5 has not been used).')
+    elif missing_values:
+        raise ValueError('The UID column is missing values.')
+    elif not correct_lengths:
+        raise ValueError('The UID column is in the incorrect format (UUID5 has not been used).')
+    elif not correct_components:
+        raise ValueError('The UID column is in the incorrect format (UUID5 has not been used).')
+
+
 def preprocessing(new_data_filepath, required_fields, generated_fields, optional_fields, new_fields, new_fields_abbreviated, calculate_centroid):
     '''
     Reads the RTS data set to be processed, ensures it is in the correct CRS, calculates centroids if requested, filters the columns and checks that all required columns are present.
@@ -343,12 +373,12 @@ def preprocessing(new_data_filepath, required_fields, generated_fields, optional
     if calculate_centroid:
         if re.search('\\.shp', str(new_data_filepath)):
             new_data = new_data.drop(['CntrdLt', 'CntrdLn'], axis=1)
-            new_data["CntrdLt"] = new_data.to_crs(4326).centroid.y.round(5)
-            new_data["CntrdLn"] = new_data.to_crs(4326).centroid.x.round(5)
+            new_data["CntrdLt"] = new_data.centroid.to_crs(4326).y.round(5)
+            new_data["CntrdLn"] = new_data.centroid.to_crs(4326).x.round(5)
 
         elif re.search('\\.geojson', str(new_data_filepath)):
-            new_data["CentroidLat"] = new_data.to_crs(4326).centroid.y.round(5)
-            new_data["CentroidLon"] = new_data.to_crs(4326).centroid.x.round(5)
+            new_data["CentroidLat"] = new_data.centroid.to_crs(4326).y.round(5)
+            new_data["CentroidLon"] = new_data.centroid.to_crs(4326).x.round(5)
 
     # select correct columns
     if re.search('\\.geojson', str(new_data_filepath)):
@@ -400,6 +430,231 @@ def preprocessing(new_data_filepath, required_fields, generated_fields, optional
     return new_data
 
 
+def classify_negatives(overlapping_data, main_data):
+    '''
+    Automatically classify overlapping UIDs which are negative bounding boxes that overlap other negative bounding boxes.
+
+    @param overlapping_data - The overlapping data set.
+    @param main_data - The main ARTS data set.
+    '''
+
+    negative_classifications = []
+    
+    for intersection, self_intersection, train_class, base_map_date in zip(
+        tqdm(overlapping_data.Intersections), 
+        overlapping_data.SelfIntersections, 
+        overlapping_data.TrainClass, 
+        overlapping_data.BaseMapDate
+    ):
+
+        intersection_split = intersection.split(',')
+        self_intersection_split = self_intersection.split(',')
+        dates = [int(date.split('-')[0]) for date in base_map_date.split(',')]
+
+        if train_class == 'Negative' and (len(intersection) > 0 or len(self_intersection) > 0):
+
+            # repeat negatives
+            uids_negative_main = list(
+                main_data.loc[(main_data.UID.isin(intersection_split)) & (main_data.TrainClass == 'Negative')]
+                .UID
+            )
+            
+            uids_negative_overlapping = list(
+                overlapping_data.loc[
+                (overlapping_data.UID.isin(self_intersection_split)) & (overlapping_data.TrainClass == 'Negative')
+                ]
+                .UID
+            )
+            
+            repeat_negative = ','.join(
+                [item for item in intersection_split if item in uids_negative_main] +
+                [item for item in self_intersection_split if item in uids_negative_overlapping]
+            )
+            
+            # false negatives
+            uids_old_main = list(
+                main_data.loc[
+                (
+                    main_data.UID.isin(intersection_split)
+                ) & (
+                    main_data.TrainClass == 'Positive'
+                ) & (
+                    pd.Series([
+                        [
+                            int(date.split('-')[0]) for date in map_dates.split(',')
+                            ][0] <= dates[1] for map_dates in main_data.BaseMapDate
+                        ])
+                    )
+                ]
+                .UID
+            )
+            uids_old_overlapping = list(
+                overlapping_data.loc[
+                (
+                    overlapping_data.UID.isin(self_intersection_split)
+                ) & (
+                    overlapping_data.TrainClass == 'Positive'
+                ) & (
+                    pd.Series([
+                        [
+                            int(date.split('-')[0]) for date in map_dates.split(',')
+                            ][0] <= dates[1] for map_dates in overlapping_data.BaseMapDate
+                        ])
+                    )
+                ]
+                .UID
+            )
+
+            false_negative = ','.join(
+                [item for item in intersection_split if item in uids_old_main] +
+                [item for item in self_intersection_split if item in uids_old_overlapping]
+            )
+
+            # new rts
+            uids_new_main = main_data.copy(deep = True)
+            uids_new_main['year'] = pd.Series([
+                [
+                    int(date.split('-')[0]) for date in map_dates.split(',')
+                    ][0] > dates[1] for map_dates in main_data.BaseMapDate
+                ])
+            uids_new_main = uids_new_main.sort_values('year').groupby('UID').head(1)
+            uids_new_main = list(
+                uids_new_main.loc[
+                (
+                    uids_new_main.UID.isin(intersection_split)
+                ) & (
+                    uids_new_main.TrainClass == 'Positive'
+                ) & (
+                    uids_new_main.year > dates[1]
+                )
+                ]
+                .UID
+            )
+            
+            uids_new_overlapping = overlapping_data.copy(deep = True)
+            uids_new_overlapping['year'] = pd.Series([
+                [
+                    int(date.split('-')[0]) for date in map_dates.split(',')
+                    ][0] > dates[1] for map_dates in uids_new_overlapping.BaseMapDate
+                ])
+            uids_new_overlapping = uids_new_overlapping.sort_values('year').groupby('UID').head(1)
+            
+            uids_new_overlapping = list(
+                uids_new_overlapping.loc[
+                (
+                    uids_new_overlapping.UID.isin(self_intersection_split)
+                ) & (
+                    uids_new_overlapping.TrainClass == 'Positive'
+                ) & (
+                    uids_new_overlapping.year > dates[1]
+                )
+                ]
+                .UID
+            )
+
+            new_rts = ','.join(
+                [item for item in intersection_split if item in uids_new_main] +
+                [item for item in self_intersection_split if item in uids_new_overlapping]
+            )
+
+        elif train_class == 'Positive' and (len(intersection) > 0 or len(self_intersection) > 0):
+        
+            # repeat negatives
+            repeat_negative = ''
+            
+            # false negatives
+            uids_old_main = list(
+                main_data.loc[
+                (
+                    main_data.UID.isin(intersection_split)
+                ) & (
+                    main_data.TrainClass == 'Negative'
+                ) & (
+                    pd.Series([
+                        [
+                            int(date.split('-')[0]) for date in map_dates.split(',')
+                            ][1] >= dates[0] for map_dates in main_data.BaseMapDate
+                        ])
+                    )
+                ]
+                .UID
+            )
+            uids_old_overlapping = list(
+                overlapping_data.loc[
+                (
+                    overlapping_data.UID.isin(self_intersection_split)
+                ) & (
+                    overlapping_data.TrainClass == 'Negative'
+                ) & (
+                    pd.Series([
+                        [
+                            int(date.split('-')[0]) for date in map_dates.split(',')
+                            ][1] >= dates[0] for map_dates in overlapping_data.BaseMapDate
+                        ])
+                    )
+                ]
+                .UID
+            )
+
+            false_negative = ','.join(
+                [item for item in intersection_split if item in uids_old_main] +
+                [item for item in self_intersection_split if item in uids_old_overlapping]
+            )
+
+            # new rts
+            uids_new_main = list(
+                main_data.loc[
+                (
+                    main_data.UID.isin(intersection_split)
+                ) & (
+                    main_data.TrainClass == 'Negative'
+                ) & (
+                    pd.Series([
+                        [
+                            int(date.split('-')[0]) for date in map_dates.split(',')
+                            ][1] < dates[0] for map_dates in main_data.BaseMapDate
+                        ])
+                    )
+                ]
+                .UID
+            )
+            uids_new_overlapping = list(
+                overlapping_data.loc[
+                (
+                    overlapping_data.UID.isin(self_intersection_split)
+                ) & (
+                    overlapping_data.TrainClass == 'Negative'
+                ) & (
+                    pd.Series([
+                        [
+                            int(date.split('-')[0]) for date in map_dates.split(',')
+                            ][1] < dates[0] for map_dates in overlapping_data.BaseMapDate
+                        ])
+                    )
+                ]
+                .UID
+            )
+
+            new_rts = ','.join(
+                [item for item in intersection_split if item in uids_new_main] +
+                [item for item in self_intersection_split if item in uids_new_overlapping]
+            )
+
+        else:
+            repeat_negative = ''
+            false_negative = ''
+            new_rts = ''
+
+        negative_classifications.append([repeat_negative, false_negative, new_rts])
+
+    negative_classifications = pd.DataFrame(
+        negative_classifications, 
+        columns = ['RepeatNegative', 'FalseNegative', 'NewRTS']
+    )
+
+    return negative_classifications
+
+
 def check_intersections(new_data, main_data, out_path, demo):
     '''
     Check intersections between data to be submitted and the main data set.
@@ -411,40 +666,41 @@ def check_intersections(new_data, main_data, out_path, demo):
 
     @return geopandas dataframe with intersecting features
     '''
-    intersections = []
 
-    for idx in range(0, new_data.shape[0]):
+    print('Getting intersections')
+    intersections = []
+    adjacent_polys = []
+    
+    
+    for idx in tqdm(range(0, new_data.shape[0])):
         new_intersections = get_intersecting_uids(
             new_data.iloc[[idx]], main_data)
         intersections = intersections + new_intersections
 
-    new_data['Intersections'] = intersections
-
-    adjacent_polys = []
-    for idx in range(0, new_data.shape[0]):
         new_adjacent_polys = get_touching_uids(new_data.iloc[[idx]], main_data)
         adjacent_polys = adjacent_polys + new_adjacent_polys
 
+    new_data['Intersections'] = intersections
     new_data['AdjacentPolys'] = adjacent_polys
 
     new_data.Intersections = remove_adjacent_polys(
         new_data.Intersections, new_data.AdjacentPolys
     )
     
+    print('Getting self intersections')
     intersections = []
-    for idx in range(0, new_data.shape[0]):
+    adjacent_polys = []
+
+    for idx in tqdm(range(0, new_data.shape[0])):
         new_intersections = get_intersecting_uids(
             new_data.iloc[[idx]], new_data.drop([idx]))
         intersections = intersections + new_intersections
 
-    new_data['SelfIntersections'] = intersections
-
-    adjacent_polys = []
-    for idx in range(0, new_data.shape[0]):
         new_adjacent_polys = get_touching_uids(
             new_data.iloc[[idx]], new_data.drop(idx))
         adjacent_polys = adjacent_polys + new_adjacent_polys
 
+    new_data['SelfIntersections'] = intersections
     new_data['SelfAdjacentPolys'] = adjacent_polys
 
     new_data.SelfIntersections = remove_adjacent_polys(
@@ -461,26 +717,26 @@ def check_intersections(new_data, main_data, out_path, demo):
     if overlapping_data.shape[0] > 0:
         if 'RepeatRTS' not in list(overlapping_data.columns.values):
             overlapping_data['RepeatRTS'] = ['']*overlapping_data.shape[0]
-        if 'RepeatNegative' not in list(overlapping_data.columns.values):
-            overlapping_data['RepeatNegative'] = ['']*overlapping_data.shape[0]
         if 'MergedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['MergedRTS'] = ['']*overlapping_data.shape[0]
         if 'SplitRTS' not in list(overlapping_data.columns.values):
             overlapping_data['SplitRTS'] = ['']*overlapping_data.shape[0]
-        if 'NewRTS' not in list(overlapping_data.columns.values):
-            overlapping_data['NewRTS'] = ['']*overlapping_data.shape[0]
         if 'StabilizedRTS' not in list(overlapping_data.columns.values):
             overlapping_data['StabilizedRTS'] = ['']*overlapping_data.shape[0]
         if 'AccidentalOverlap' not in list(overlapping_data.columns.values):
             overlapping_data['AccidentalOverlap'] = ['']*overlapping_data.shape[0]
-        if 'FalsetNegative' not in list(overlapping_data.columns.values):
-            overlapping_data['FalseNegative'] = ['']*overlapping_data.shape[0]
         if 'UnknownRelationship' not in list(overlapping_data.columns.values):
             overlapping_data['UnknownRelationship'] = ['']*overlapping_data.shape[0]
-
-        print(overlapping_data)
+            
+        print('Classifying negative bounding box relationships')
+        negative_classifications = classify_negatives(overlapping_data, main_data)
+        overlapping_data = overlapping_data.set_axis(negative_classifications.index).join(negative_classifications)
 
         if demo == False:
+
+            if not os.path.exists(out_path):
+                os.makedirs(out_path)
+                
             overlapping_data.to_file(
                 out_path
             )

@@ -9,6 +9,7 @@ output: html_document
 
 ```{r}
 library(R.utils)
+library(svMisc)
 library(reticulate)
 library(sf)
 library(tidyverse)
@@ -247,11 +248,11 @@ new_dataset = check_intersections(
 )
 ```
 
-At this point, you will need to manually check all polygons with intersections against the polygons in the official RTS data set and polygons with self intersections against themselves in your preferred GIS software and save the output to `r paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_overlapping_edited.geojson')` (press Ctrl+Enter while cursor is in the preceding in-line code chunk to see the actual file name, rather than the code to produce the file name).  When possible/necessary, try to find imagery that matches the date of the intersecting polygons - this may require contacting the lab that did the original delineation. Visual examples of the following rules are stored in './Tutorial/RTS Relationship Guidelines.pdf'
+At this point, you will need to manually check all RTS polygons with intersections against the polygons in the official RTS data set and polygons with self intersections against themselves in your preferred GIS software and save the output to `r paste0(str_split(your_rts_dataset_file, '\\.')[[1]][1], '_overlapping_edited.geojson')` (press Ctrl+Enter while cursor is in the preceding in-line code chunk to see the actual file name, rather than the code to produce the file name).  When possible/necessary, try to find imagery that matches the date of the intersecting polygons - this may require contacting the lab that did the original delineation. Visual examples of the following rules are stored in './Tutorial/RTS Relationship Guidelines.pdf'
 
-Your job is to inspect each of the previously published polygons listed in the 'Intersections' column compared to the new RTS feature and manually copy and paste the UIDs from the 'Intersections' column into the 'RepeatRTS', 'RepeatNegative', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', 'FalseNegative', or 'UnknownRelationship' based on the relationship between the two polygons. Similarly, you need to inspect each of the polygons listed in the 'SelfIntersections' column and copy and paste the UIDs from the 'SelfIntersections' column into the 'RepeatRTS', 'RepeatNegative', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', 'FalseNegative', or 'UnknownRelationship' based on the relationship between the two polygons. The instructions are slightly different for negative and positive RTS features in the new data set. For postitive RTS features, use the following rules:
+Your job is to inspect each of the previously published polygons listed in the 'Intersections' column compared to the new RTS feature and manually copy and paste the UIDs from the 'Intersections' column into the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', or 'UnknownRelationship' based on the relationship between the two polygons. Similarly, you need to inspect each of the polygons listed in the 'SelfIntersections' column and copy and paste the UIDs from the 'SelfIntersections' column into the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', or 'UnknownRelationship' based on the relationship between the two polygons. Negative bounding boxes with overlapping features are automatically classified into the 'RepeatNegative', 'FalseNegative', and 'NewRTS' columns. For postitive RTS features, use the following rules for manual classification:
 
-There may be multiple UIDs in the ‘Intersections’ and ‘SelfIntersections’ columns. When multiple UIDs are present, they are separated by a comma (no spaces). When copying and pasting multiple UIDs, ensure that each UID is pasted into the correct column (they will not always have the same relationship to the polygon in that row) and that no leading or trailing commas are present in the column(s) in which the UIDs were pasted.
+There may be multiple UIDs in the ‘Intersections’ and ‘SelfIntersections’ columns. When multiple UIDs are present, they are separated by a comma (no spaces). When copying and pasting multiple UIDs, ensure that each UID is pasted into the correct column (all UIDs will not always have the same relationship to the polygon in that row) and that no leading or trailing commas are present in the column(s) in which the UIDs were pasted.
 
 - Paste the UID into the RepeatRTS column when the RTS feature in the current row is the same RTS feature as the RTS feature in the 'Intersections' or 'SelfIntersections' column, but was delineated at a different point in time, by a different lab at the same point in time, or from different imagery at the same point in time. The RTS feature is the same when it was the result of the same RTS initiation event.
 
@@ -269,20 +270,12 @@ There may be multiple UIDs in the ‘Intersections’ and ‘SelfIntersections�
 
 - If you are unable to determine the relationship based on an inspection of the original imagery and the available information, you can copy the UID into the UnknownRelationship column. NOTE: This should be a last resort used in rare occasions (e.g. the researcher who delineated the feature cannot be contacted and insufficient information was recorded to make a reasonably confident decision), as it will limit the utility of the row of data to researchers.
 
-For negative bounding boxes (no RTS inside the bounding box), use the following rules:
-
-- Paste the UID into the NewRTS column when there is an RTS feature in the 'Intersections' or 'SelfIntersections' column that is a new RTS feature which formed within the negative bounding box in the current row. The date of the new RTS feature must be more recent than the date on the negative bounding box.
-
-- Paste the UID into the RepeatNegative column when there is a negative bounding box in the 'Intersections' or 'SelfIntersections' column that overlaps the negative bounding box in the current row. 
-
-- Paste the UID into the FalseNegative column when there is an RTS feature in the 'Intersections' or 'SelfIntersections' column that predates the negative bounding box in the current row. 
-
-When this is done, each of the UIDs in the 'Intersections' and 'SelfIntersections' columns should have been copied into one (and only one) of the 'RepeatRTS', 'RepeatNegative', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', 'FalseNegative', and 'UnknownRelationship' columns.
+When this is done, each of the UIDs in the 'Intersections' and 'SelfIntersections' columns should have been copied into one (and only one) of the 'RepeatRTS', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', or 'UnknownRelationship' columns.
 
 
 # Load Manually Edited File and Join to New Data
 
-Add the 'RepeatRTS', 'RepeatNegative', 'StabilizedRTS', 'NewRTS', 'MergedRTS', 'SplitRTS', 'AccidentalOverlap', 'FalseNegative', and 'UnknownRelationship' columns that you just edited back into `new_dataset`.
+Add the RTS relationship columns that you just edited back into `new_dataset`.
 
 ```{r}
 if (demo) {
@@ -335,6 +328,13 @@ if (nrow(
 
 ```{r}
 check_intersection_info(merged_data, your_rts_dataset_file, base_dir)
+```
+
+
+# Confirm UIDs are all Present
+
+```{r}
+check_uids(merged_data$UID)
 ```
 
 
