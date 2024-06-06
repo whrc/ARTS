@@ -400,6 +400,12 @@ preprocessing = function(
     calculate_centroid
     ) {
   
+  if (!file.exists(
+    paste(base_dir, 'output', sep = '/')
+  )) {
+    dir.create(paste(base_dir, 'output', sep = '/'))
+  }
+  
   new_data = read_sf(new_data_filepath) |>
     distinct() # remove duplicated rows
   
@@ -832,10 +838,6 @@ check_intersections = function(new_data, main_data, out_path, demo) {
     
     if (!demo) {
       
-      if (!dir.exists(out_path)) {
-        dir.create(out_path)
-      }
-      
       st_write(overlapping_data,
                out_path, 
                append = FALSE)
@@ -975,12 +977,6 @@ output = function(
   if (!demo) {
     
     if (separate_file) {
-      
-      if (!file.exists(
-        paste(base_dir, 'output', sep = '/')
-      )) {
-        dir.create(paste(base_dir, 'output', sep = '/'))
-      }
       
       filepath = paste(
         base_dir,
