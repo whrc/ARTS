@@ -24,30 +24,36 @@ get_unclassified_intersections = function(
     FalseNegative,
     UnknownRelationship) {
   
-  all_intersections = c(
-    str_split(Intersections, ',')[[1]],
-    str_split(SelfIntersections, ',')[[1]]
-  ) |>
-    unique()
-  all_intersections = all_intersections[which(all_intersections != '')]
-  
-  all_classifications = c(
-    str_split(RepeatRTS, ',')[[1]],
-    str_split(RepeatNegative, ',')[[1]],
-    str_split(StabilizedRTS, ',')[[1]],
-    str_split(NewRTS, ',')[[1]],
-    str_split(MergedRTS, ',')[[1]],
-    str_split(SplitRTS, ',')[[1]],
-    str_split(AccidentalOverlap, ',')[[1]],
-    str_split(FalseNegative, ',')[[1]],
-    str_split(UnknownRelationship, ',')[[1]]
-  )
-  all_classifications = all_classifications[which(all_classifications != '')]
-  
-  unclassified_intersections = str_flatten(
-    all_intersections[which(!all_intersections %in% all_classifications)],
-    ','
-  )
+  if (length(Intersections) > 0 | length(SelfIntersections) > 0){
+    
+    all_intersections = c(
+      str_split(Intersections, ',')[[1]],
+      str_split(SelfIntersections, ',')[[1]]
+    ) |>
+      unique()
+    all_intersections = all_intersections[which(all_intersections != '')]
+    
+    all_classifications = c(
+      str_split(RepeatRTS, ',')[[1]],
+      str_split(RepeatNegative, ',')[[1]],
+      str_split(StabilizedRTS, ',')[[1]],
+      str_split(NewRTS, ',')[[1]],
+      str_split(MergedRTS, ',')[[1]],
+      str_split(SplitRTS, ',')[[1]],
+      str_split(AccidentalOverlap, ',')[[1]],
+      str_split(FalseNegative, ',')[[1]],
+      str_split(UnknownRelationship, ',')[[1]]
+    )
+    all_classifications = all_classifications[which(all_classifications != '')]
+    
+    unclassified_intersections = str_flatten(
+      all_intersections[which(!all_intersections %in% all_classifications)],
+      ','
+    )
+    
+  } else {
+    unclassified_intersections = tibble()
+  }
 
 return(unclassified_intersections)
 
