@@ -310,13 +310,14 @@ merged_data = merge_data(new_dataset, edited_filepath)
 merged_data = merged_data |>
   remove_new_false_negatives()
 
-if (nrow(
-  merged_data |>
-    filter(TrainClass == 'Positive' & str_length(FalseNegative) > 0)) > 0
+if (
+  nrow(
+    merged_data |>
+      filter(TrainClass == 'Positive' & !(is.na(FalseNegative)))
+  )
 ) {
   ARTS_main_dataset = merged_data |>
     remove_old_false_negatives(ARTS_main_dataset)
-  
   updated_main = TRUE
 } else {
   updated_main = FALSE

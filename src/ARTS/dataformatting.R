@@ -945,26 +945,23 @@ merge_data = function(new_data, edited_file) {
 remove_new_false_negatives = function(new_data) {
   
   new_data = new_data |>
-    filter(!(TrainClass == 'Negative' & str_length(FalseNegative) > 0))
+    filter(!(TrainClass == 'Negative' & !(is.na(FalseNegative))))
   
   return(new_data)
-  
 }
 
 # remove_old_false_negatives
 remove_old_false_negatives = function(new_data, main_data) {
   
   uids = new_data |>
-    filter(TrainClass == 'Positive' & str_length(FalseNegative) > 0) |>
+    filter(TrainClass == 'Positive' & !(is.na(FalseNegative))) |>
     pull(FalseNegative)
   
   main_data = main_data |>
     filter(!(UID %in% uids & TrainClass == 'Negative'))
   
   return(main_data)
-  
   return(new_data)
-  
 }
 
 # output
