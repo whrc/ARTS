@@ -272,11 +272,14 @@ check_basemap_date = function(basemap_date) {
   correct_type = all(
     as.logical(
       map(
-        basemap_date |>
-          str_split(pattern = ','),
-        ~ class(
-          .x |>
-            ymd()
+        split_dates,
+        ~ !all(
+          is.na(.x |>
+                  str_split(pattern = ',') |>
+                  ymd()
+          )
+        ) & class(.x |>
+                    ymd()
         ) == 'Date'
       )
     )

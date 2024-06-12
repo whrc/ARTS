@@ -232,7 +232,8 @@ def check_basemap_date(basemap_date):
     '''
 
     correct_type = pd.Series([
-        type(pd.to_datetime(row)) == pd.core.indexes.datetimes.DatetimeIndex
+        (~pd.to_datetime(row, format='%Y-%m-%d', errors='coerce').isnull().all()) & 
+        (type(pd.to_datetime(row, format='%Y-%m-%d', errors='coerce')) == pd.core.indexes.datetimes.DatetimeIndex)
         for row in basemap_date.str.split(',')
     ]).values.all()
     missing_values = ((basemap_date.str.split(
