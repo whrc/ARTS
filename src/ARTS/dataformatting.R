@@ -549,7 +549,7 @@ classify_negatives = function(
     
     intersections_split = str_split(intersections, ',')[[1]]
     self_intersections_split = str_split(self_intersections, ',')[[1]]
-    dates = year(as_date(str_split(base_map_date, ',')[[1]]))
+    dates = year(suppressWarnings(as_date(str_split(base_map_date, ',')[[1]])))
     
     if (
       train_class == 'Negative' & 
@@ -581,14 +581,18 @@ classify_negatives = function(
         filter(
           UID %in% intersections_split & 
             TrainClass == 'Positive' & 
-            year(as_date(str_split(BaseMapDate, ',')[[1]]))[1] <= dates[2]
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[1] <= dates[2]
         ) %>%
         pull(UID)
       uids_old_overlapping = overlapping_data %>%
         filter(
           UID %in% self_intersections_split & 
             TrainClass == 'Positive' &
-            year(as_date(str_split(BaseMapDate, ',')[[1]]))[1] <= dates[2]
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[1] <= dates[2]
         ) %>%
         pull(UID)
       
@@ -606,7 +610,11 @@ classify_negatives = function(
       
       # new_rts
       uids_new_main = main_data %>%
-        mutate(year = year(as_date(str_split(BaseMapDate, ',')[[1]]))[1]) %>%
+        mutate(
+          year = year(
+            suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+          )[1]
+        ) %>%
         filter(
           UID %in% self_intersections_split & 
             TrainClass == 'Positive' &
@@ -616,7 +624,11 @@ classify_negatives = function(
         ) %>%
         pull(UID)
       uids_new_overlapping = overlapping_data %>%
-        mutate(year = year(as_date(str_split(BaseMapDate, ',')[[1]]))[1]) %>%
+        mutate(
+          year = year(
+            suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+          )[1]
+        ) %>%
         filter(
           UID %in% self_intersections_split & 
             TrainClass == 'Positive' &
@@ -652,14 +664,18 @@ classify_negatives = function(
         filter(
           UID %in% intersections_split & 
             TrainClass == 'Negative' & 
-            year(as_date(str_split(BaseMapDate, ',')[[1]]))[2] >= dates[1]
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] >= dates[1]
         ) %>%
         pull(UID)
       uids_old_overlapping = overlapping_data %>%
         filter(
           UID %in% self_intersections_split & 
             TrainClass == 'Negative' &
-            year(as_date(str_split(BaseMapDate, ',')[[1]]))[2] >= dates[1]
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] >= dates[1]
         ) %>%
         pull(UID)
       
@@ -680,14 +696,18 @@ classify_negatives = function(
         filter(
           UID %in% intersections_split & 
             TrainClass == 'Negative' & 
-            year(as_date(str_split(BaseMapDate, ',')[[1]]))[2] < dates[1]
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] < dates[1]
         ) %>%
         pull(UID)
       uids_new_overlapping = overlapping_data %>%
         filter(
           UID %in% self_intersections_split & 
             TrainClass == 'Negative' &
-            year(as_date(str_split(BaseMapDate, ',')[[1]]))[2] < dates[1]
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] < dates[1]
         ) %>%
         pull(UID)
       
@@ -719,7 +739,7 @@ classify_negatives = function(
   
   negative_classifications = as_tibble(
     negative_classifications
-    ) |>
+  ) |>
     rename('RepeatNegative' = 1, 'FalseNegative' = 2, 'NewRTS' = 3)
   
   return(negative_classifications)
