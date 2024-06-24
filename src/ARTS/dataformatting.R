@@ -269,18 +269,16 @@ check_creator = function(creator) {
 
 check_basemap_date = function(basemap_date) {
   
+  split_dates = basemap_date |>
+    str_split(pattern = ',')
+  
   correct_type = all(
     as.logical(
       map(
-        basemap_date,
-        ~ !all(
-          is.na(.x |>
-                  str_split(pattern = ',') |>
-                  ymd()
-          )
-        ) & class(.x |>
-                    ymd()
-        ) == 'Date'
+        split_dates,
+        ~ all(
+          .x == 'unknown' | !is.na(ymd(.x, quiet = TRUE))
+        )
       )
     )
   )
