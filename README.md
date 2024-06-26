@@ -66,6 +66,8 @@ In the command line, make sure you are in the repository directory and run: `mam
 
 **3. Run the Scripts (Choose either Rmarkdown or Jupyter Notebook)**
 
+Rmarkdown is preferred, as the step to check for intersections is much faster in R (~40x faster as of v.0.0.20-alpha). (If you have suggestions for speeding up the Python version, please be in touch.) 
+
 Copy your new, pre-formatted RTS file into the **input_data** folder. Take a look at **input_data/metadata_description** for formatting requirements.
    
 If using Python, ensure you are in the repository directory and activate the conda environment by running: `conda activate rts_dataset`. Open **Tutorial/rts_dataset_formatting.ipynb** in either Jupyter Notebook or Jupyter Lab by running: `jupyter notebook` or `jupyter lab`. Follow the instructions in the script to format your data set.

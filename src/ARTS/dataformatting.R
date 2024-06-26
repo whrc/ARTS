@@ -24,33 +24,39 @@ get_unclassified_intersections = function(
     FalseNegative,
     UnknownRelationship) {
   
-  all_intersections = c(
-    str_split(Intersections, ',')[[1]],
-    str_split(SelfIntersections, ',')[[1]]
+  if (length(Intersections) > 0 | length(SelfIntersections) > 0){
+    
+    all_intersections = c(
+      str_split(Intersections, ',')[[1]],
+      str_split(SelfIntersections, ',')[[1]]
     ) |>
-    unique()
-  all_intersections = all_intersections[which(all_intersections != '')]
-  
-  all_classifications = c(
-    str_split(RepeatRTS, ',')[[1]],
-    str_split(RepeatNegative, ',')[[1]],
-    str_split(StabilizedRTS, ',')[[1]],
-    str_split(NewRTS, ',')[[1]],
-    str_split(MergedRTS, ',')[[1]],
-    str_split(SplitRTS, ',')[[1]],
-    str_split(AccidentalOverlap, ',')[[1]],
-    str_split(FalseNegative, ',')[[1]],
-    str_split(UnknownRelationship, ',')[[1]]
-  )
-  all_classifications = all_classifications[which(all_classifications != '')]
-  
-  unclassified_intersections = str_flatten(
-    all_intersections[which(!all_intersections %in% all_classifications)],
-    ','
+      unique()
+    all_intersections = all_intersections[which(all_intersections != '')]
+    
+    all_classifications = c(
+      str_split(RepeatRTS, ',')[[1]],
+      str_split(RepeatNegative, ',')[[1]],
+      str_split(StabilizedRTS, ',')[[1]],
+      str_split(NewRTS, ',')[[1]],
+      str_split(MergedRTS, ',')[[1]],
+      str_split(SplitRTS, ',')[[1]],
+      str_split(AccidentalOverlap, ',')[[1]],
+      str_split(FalseNegative, ',')[[1]],
+      str_split(UnknownRelationship, ',')[[1]]
     )
-  
-  return(unclassified_intersections)
-  
+    all_classifications = all_classifications[which(all_classifications != '')]
+    
+    unclassified_intersections = str_flatten(
+      all_intersections[which(!all_intersections %in% all_classifications)],
+      ','
+    )
+    
+  } else {
+    unclassified_intersections = tibble()
+  }
+
+return(unclassified_intersections)
+
 }
 
 # check_intersection_info
@@ -263,15 +269,16 @@ check_creator = function(creator) {
 
 check_basemap_date = function(basemap_date) {
   
+  split_dates = basemap_date |>
+    str_split(pattern = ',')
+  
   correct_type = all(
     as.logical(
       map(
-        basemap_date |>
-          str_split(pattern = ','),
-        ~ class(
-          .x |>
-            ymd()
-        ) == 'Date'
+        split_dates,
+        ~ all(
+          .x == 'unknown' | !is.na(ymd(.x, quiet = TRUE))
+        )
       )
     )
   )
@@ -346,6 +353,39 @@ run_formatting_checks = function(df) {
   print('Formatting looks good!')
 }
 
+# check_uids
+check_uids = function(uid) {
+  
+  correct_type = class(uid) == 'character'
+  missing_values = any(uid == '')
+  
+  split_uids = str_split(uid, '-')
+  correct_lengths = all(
+    split_uids %>%
+      map( 
+        ~ all(str_length(.x) == c(8, 4, 4, 4, 12))
+      ) %>%
+      unlist()
+  )
+  correct_components = all(
+    split_uids %>%
+      map(
+        ~ all(str_detect(.x, '^[:alnum:]+$'))
+      ) %>%
+      unlist()
+  )
+  
+  if (!correct_type) {
+    stop('The UID column is in the incorrect format (UUID5 has not been used).')
+  } else if (missing_values) {
+    stop('The UID column is missing values.')
+  }  else if (!correct_lengths) {
+    stop('The UID column is in the incorrect format (UUID5 has not been used).')
+  }  else if (!correct_components) {
+    stop('The UID column is in the incorrect format (UUID5 has not been used).')
+  } 
+}
+
 # split_string_to_vector
 split_string_to_vector = function(UID_string) {
   uids = UID_string |>
@@ -366,6 +406,12 @@ preprocessing = function(
     new_fields,
     calculate_centroid
     ) {
+  
+  if (!file.exists(
+    paste(base_dir, 'output', sep = '/')
+  )) {
+    dir.create(paste(base_dir, 'output', sep = '/'))
+  }
   
   new_data = read_sf(new_data_filepath) |>
     distinct() # remove duplicated rows
@@ -475,7 +521,233 @@ seed_gen = function(new_data) {
   return(new_data)
 }
 
+classify_negatives = function(
+    overlapping_data,
+    main_data
+) {
+  
+  negative_classifications = matrix(nrow = nrow(overlapping_data), ncol = 3)
+  n = nrow(overlapping_data)
+  print(paste0('There are ', n, ' intersections.'))
+  
+  for (row_idx in 1:n) {
+    
+    intersections = overlapping_data %>%
+      slice(row_idx) %>%
+      pull(Intersections)
+    self_intersections = overlapping_data %>%
+      slice(row_idx) %>%
+      pull(SelfIntersections)
+    train_class = overlapping_data %>%
+      slice(row_idx) %>%
+      pull(TrainClass)
+    base_map_date = overlapping_data %>%
+      slice(row_idx) %>%
+      pull(BaseMapDate)
+    
+    intersections_split = str_split(intersections, ',')[[1]]
+    self_intersections_split = str_split(self_intersections, ',')[[1]]
+    dates = year(suppressWarnings(as_date(str_split(base_map_date, ',')[[1]])))
+    
+    if (
+      train_class == 'Negative' & 
+      (str_length(intersections) > 0 | str_length(self_intersections) > 0)
+    ) {
+      
+      # repeat negatives
+      uids_negative_main = main_data %>%
+        filter(UID %in% intersections_split & TrainClass == 'Negative') %>%
+        pull(UID)
+      uids_negative_overlapping = overlapping_data %>%
+        filter(UID %in% self_intersections_split & TrainClass == 'Negative') %>%
+        pull(UID)
+      
+      repeat_negative = str_flatten(
+        c(
+          intersections_split[
+            which(intersections_split %in% uids_negative_main)
+          ],
+          self_intersections_split[
+            which(self_intersections_split %in% uids_negative_overlapping)
+          ]
+        ), 
+        collapse = ','
+      )
+      
+      # false negatives
+      uids_old_main = main_data %>%
+        filter(
+          UID %in% intersections_split & 
+            TrainClass == 'Positive' & 
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[1] <= dates[2]
+        ) %>%
+        pull(UID)
+      uids_old_overlapping = overlapping_data %>%
+        filter(
+          UID %in% self_intersections_split & 
+            TrainClass == 'Positive' &
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[1] <= dates[2]
+        ) %>%
+        pull(UID)
+      
+      false_negative = str_flatten(
+        c(
+          intersections_split[
+            which(intersections_split %in% uids_old_main)
+          ],
+          self_intersections_split[
+            which(self_intersections_split %in% uids_old_overlapping)
+          ]
+        ), 
+        collapse = ','
+      )
+      
+      # new_rts
+      uids_new_main = main_data %>%
+        mutate(
+          year = year(
+            suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+          )[1]
+        ) %>%
+        filter(
+          UID %in% self_intersections_split & 
+            TrainClass == 'Positive' &
+            year > dates[2] &
+            year == min(year),
+          .by = UID
+        ) %>%
+        pull(UID)
+      uids_new_overlapping = overlapping_data %>%
+        mutate(
+          year = year(
+            suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+          )[1]
+        ) %>%
+        filter(
+          UID %in% self_intersections_split & 
+            TrainClass == 'Positive' &
+            year > dates[2] &
+            year == min(year),
+          .by = UID
+        ) %>%
+        pull(UID)
+      
+      new_rts = str_flatten(
+        c(
+          intersections_split[
+            which(intersections_split %in% uids_new_main)
+          ],
+          self_intersections_split[
+            which(self_intersections_split %in% uids_new_overlapping)
+          ]
+        ), 
+        collapse = ','
+      )
+      
+      
+    } else if (
+      train_class == 'Positive' & 
+      (str_length(intersections) > 0 | str_length(self_intersections) > 0)
+    ) {
+      
+      # repeat negatives
+      repeat_negative = NA_character_
+      
+      # false negatives
+      uids_old_main = main_data %>%
+        filter(
+          UID %in% intersections_split & 
+            TrainClass == 'Negative' & 
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] >= dates[1]
+        ) %>%
+        pull(UID)
+      uids_old_overlapping = overlapping_data %>%
+        filter(
+          UID %in% self_intersections_split & 
+            TrainClass == 'Negative' &
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] >= dates[1]
+        ) %>%
+        pull(UID)
+      
+      false_negative = str_flatten(
+        c(
+          intersections_split[
+            which(intersections_split %in% uids_old_main)
+          ],
+          self_intersections_split[
+            which(self_intersections_split %in% uids_old_overlapping)
+          ]
+        ), 
+        collapse = ','
+      )
+      
+      # new_rts
+      uids_new_main = main_data %>%
+        filter(
+          UID %in% intersections_split & 
+            TrainClass == 'Negative' & 
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] < dates[1]
+        ) %>%
+        pull(UID)
+      uids_new_overlapping = overlapping_data %>%
+        filter(
+          UID %in% self_intersections_split & 
+            TrainClass == 'Negative' &
+            year(
+              suppressWarnings(as_date(str_split(BaseMapDate, ',')[[1]]))
+            )[2] < dates[1]
+        ) %>%
+        pull(UID)
+      
+      new_rts = str_flatten(
+        c(
+          intersections_split[
+            which(intersections_split %in% uids_new_main)
+          ],
+          self_intersections_split[
+            which(self_intersections_split %in% uids_new_overlapping)
+          ]
+        ), 
+        collapse = ','
+      )
+      
+    } else {
+      
+      repeat_negative = NA_character_
+      false_negative = NA_character_
+      new_rts = NA_character_
+      
+    }
+    
+    negative_classifications[row_idx,] = c(repeat_negative, false_negative, new_rts)
+    
+    progress(row_idx, n, progress.bar = TRUE)
+    
+  }
+  
+  negative_classifications = as_tibble(
+    negative_classifications
+  ) |>
+    rename('RepeatNegative' = 1, 'FalseNegative' = 2, 'NewRTS' = 3)
+  
+  return(negative_classifications)
+  
+}
+
 check_intersections = function(new_data, main_data, out_path, demo) {
+  
+  print(paste0('Beginning intersection calculation at ', Sys.time(), '.'))
+  
   new_data = new_data %>%
     mutate(
       # get indices of polygons in main dataset which overlap or touch
@@ -520,7 +792,23 @@ check_intersections = function(new_data, main_data, out_path, demo) {
       .after = Intersections
     ) %>%
     ungroup() %>%
-    select(-c(IntersectionIndices, SelfIntersectionIndices, AdjacentPolys, SelfAdjacentPolys))
+    mutate(
+      Intersections = case_when(Intersections == '' ~ NA_character_,
+                               TRUE ~ Intersections),
+      SelfIntersections = case_when(SelfIntersections == '' ~ NA_character_,
+                                   TRUE ~ SelfIntersections)
+    ) %>%
+    select(
+      -c(IntersectionIndices, SelfIntersectionIndices, AdjacentPolys, SelfAdjacentPolys)
+      )
+  
+  print(
+    paste0(
+      'Intersection calculation completed at ', 
+      Sys.time(), 
+      '. Beginning automated relationship classification of negative bounding boxes.'
+      )
+    )
   
   overlapping_data = new_data %>%
     filter(str_length(Intersections) > 0 | str_length(SelfIntersections) > 0)
@@ -532,13 +820,7 @@ check_intersections = function(new_data, main_data, out_path, demo) {
         mutate(RepeatRTS = NA,
                .before = geometry)
     }
-    
-    if (!'RepeatNegative' %in% colnames(overlapping_data)) {
-      overlapping_data = overlapping_data %>%
-        mutate(RepeatNegative = NA,
-               .before = geometry)
-    }
-    
+
     if (!'MergedRTS' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(MergedRTS = NA,
@@ -550,13 +832,7 @@ check_intersections = function(new_data, main_data, out_path, demo) {
         mutate(SplitRTS = NA,
                .before = geometry)
     }
-    
-    if (!'NewRTS' %in% colnames(overlapping_data)) {
-      overlapping_data = overlapping_data %>%
-        mutate(NewRTS = NA,
-               .before = geometry)
-    }
-    
+
     if (!'StabilizedRTS' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(StabilizedRTS = NA,
@@ -569,17 +845,21 @@ check_intersections = function(new_data, main_data, out_path, demo) {
                .before = geometry)
     }
    
-    if (!'FalseNegative' %in% colnames(overlapping_data)) {
-      overlapping_data = overlapping_data %>%
-        mutate(FalseNegative = NA,
-               .before = geometry)
-    }
-    
     if (!'UnknownRelationship' %in% colnames(overlapping_data)) {
       overlapping_data = overlapping_data %>%
         mutate(UnknownRelationship = NA,
                .before = geometry)
     }
+    
+    overlapping_data = overlapping_data %>%
+      bind_cols(classify_negatives(., main_data))
+    
+    print(
+      paste0(
+        'Automated relationship classification of negative bounding boxes completed at ', 
+        Sys.time()
+      )
+    )
     
     print(overlapping_data)
     
@@ -686,26 +966,23 @@ merge_data = function(new_data, edited_file) {
 remove_new_false_negatives = function(new_data) {
   
   new_data = new_data |>
-    filter(!(TrainClass == 'Negative' & str_length(FalseNegative) > 0))
+    filter(!(TrainClass == 'Negative' & !(is.na(FalseNegative))))
   
   return(new_data)
-  
 }
 
 # remove_old_false_negatives
 remove_old_false_negatives = function(new_data, main_data) {
   
   uids = new_data |>
-    filter(TrainClass == 'Positive' & str_length(FalseNegative) > 0) |>
+    filter(TrainClass == 'Positive' & !(is.na(FalseNegative))) |>
     pull(FalseNegative)
   
   main_data = main_data |>
     filter(!(UID %in% uids & TrainClass == 'Negative'))
   
   return(main_data)
-  
   return(new_data)
-  
 }
 
 # output
@@ -724,12 +1001,6 @@ output = function(
   if (!demo) {
     
     if (separate_file) {
-      
-      if (!file.exists(
-        paste(base_dir, 'output', sep = '/')
-      )) {
-        dir.create(paste(base_dir, 'output', sep = '/'))
-      }
       
       filepath = paste(
         base_dir,
