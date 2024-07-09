@@ -86,7 +86,7 @@ if (demo) {
     base_dir,
     'ARTS_main_dataset',
     dataset_version,
-    'ARTS_main_dataset.geojson',
+    paste0('ARTS_main_dataset_', dataset_version, '.geojson'),
     sep = '/'
   )
   
