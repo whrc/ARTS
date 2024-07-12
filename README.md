@@ -1,7 +1,5 @@
 # The Arctic Retrogressive Thaw Slumps Data Set (ARTS)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12701309.svg)](https://doi.org/10.5281/zenodo.12701309)
-
 This repository hosts:
 1. The ARTS main data set (current and historical versions)
 2. Tutorials (Jupyter Notebook or Rmarkdown) for preparing and formatting contributions to the ARTS data set (ARTS/Tutorial/data_formatting.ipynb or ARTS/Tutorial/data_formatting.Rmd)
@@ -95,6 +93,8 @@ If using R, open the project, **ARTS.Rproj**, in RStudio. Open **Tutorial/rts_da
 ## Related Publications
 Yang Y, Rodenhizer H, Rogers B M, et al. ARTS: a scalable data set for Arctic Retrogressive Thaw Slumps[R]. Copernicus Meetings, 2024.
 (https://meetingorganizer.copernicus.org/EGU24/EGU24-1365.html)
+
+Yili Yang, Heidi Rodenhizer, & Jacqueline Dean. (2024). Arctic Retrogressive Thaw Slumps (ARTS): digitisations of pan-Arctic retrogressive thaw slumps, 1985-2021. Arctic Data Center. doi:10.18739/A2PK0738B.
 
 ## Selected Data Examples
 ![image](https://github.com/whrc/ARTS/blob/main/img/RTSfigure.jpg)

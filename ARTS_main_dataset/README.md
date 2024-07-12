@@ -5,7 +5,7 @@ We adopted a three-part semantic version number convention consisting of three n
     - Fix a minor error caused part of the BaseMapDate of the 'TLantz, University of Victoria' incorrect.
 
 - v.1.0.0
-    - The first official release of ARTS containing 25 data sets associated with the manuscript
+    - The first official release of ARTS containing 25 data sets associated with the manuscript, this is the same version submitted for the Arctic Data Center (https://doi.org/10.18739/A2PK0738B).
 
 - v.0.0.20-alpha
     - This is the pre-release that containing 18 data sets.
