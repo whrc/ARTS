@@ -269,25 +269,13 @@ check_creator = function(creator) {
 
 check_basemap_date = function(basemap_date) {
   
-  split_dates = basemap_date |>
-    str_split(pattern = ',')
-  
-  correct_type = all(
-    as.logical(
-      map(
-        split_dates,
-        ~ all(
-          .x == 'unknown' | !is.na(ymd(.x, quiet = TRUE))
-        )
-      )
-    )
+  correct_format = all(
+    basemap_date |>
+      str_detect(pattern = '^(\\d{4}-\\d{2}-\\d{2},\\d{4}-\\d{2}-\\d{2})|(\\d{4}-\\d{2}-\\d{2},unknown)|(unknown,\\d{4}-\\d{2}-\\d{2})$')
   )
-  missing_values = any(is.na(basemap_date))
   
-  if (!correct_type) {
-    stop('The BaseMapDate column does not contain dates (or they are improperly formatted).')
-  } else if (missing_values) {
-    stop('The BaseMapDate column is missing values.')
+  if (!correct_format) {
+    stop("The BaseMapDate column should contain a range of dates in yyyy-mm-dd format separated by a comma. E.g. '2020-01-01,2020-12-31'")
   }
 }
 
