@@ -21,7 +21,7 @@ source("../src/ARTS/dataformatting.R")
 Would you like to run this as a demo with the mock data set? Provide 'TRUE' (mock data demo) or 'FALSE' (actual data processing of a new contribution):
 
 ```{r}
-demo = TRUE
+demo = FALSE
 ```
 
 Before starting, copy your new RTS dataset (can be a shapefile or a geojson) into a directory called "input_data" within the directory in which you would like to work. If you do not change any code in the following code chunk, the default directory will be the directory up one level from the location of this script.
@@ -48,7 +48,7 @@ Provide the file name of the data:
 
 ```{r}
 # set this - if demo == TRUE, what this is set to doesn't matter
-your_file = 'new_data.geojson'  # set this
+your_file = 'Margo_RTS_v1_sub_output.shp'  # set this
 dataset_version = 'v.1.0.0' # set this to the most recent version
 
 # leave everything else in this chunk alone
@@ -76,7 +76,7 @@ if (demo) {
   your_rts_dataset_file = your_file
   your_rts_dataset_filepath = paste(
     base_dir,
-    'input_data',
+    'Tutorial/mock_dataset/input_data',
     your_rts_dataset_file,
     sep = '/'
   )
@@ -114,7 +114,7 @@ Provide the names of any metadata fields in your new file that are not already i
 # new_fields = c('CustomColumn1', 'CustomColumn2')
 
 new_fields = c()
-# new_fields_abbreviated = c()
+new_fields_abbreviated = c()
 ```
 
 Have you already created RTS centroid columns, or would you like them to be created within this script? Provide either TRUE, if the columns do not exist yet, or FALSE, if you have already created them:
@@ -122,7 +122,7 @@ Have you already created RTS centroid columns, or would you like them to be crea
 ```{r}
 # Example: 
 # calculate_centroid = FALSE
-calculate_centroid = FALSE
+calculate_centroid = TRUE
 ```
 
 Would you like your formatted new data to be output in its own file (in which case you will email the file of new features to us to merge with the compiled data set) or appended the compiled dataset (in which case you will commit your updated file to your forked github repository and create a pull request to add the file to the official github repository). Your decision here should mostly be based on your comfort with github. If you have no idea what the second half of that sentence means, please opt for the separate file and email it to us.
