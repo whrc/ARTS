@@ -9,7 +9,9 @@ This repository hosts:
 ![image](https://github.com/whrc/ARTS/blob/main/img/Yang_et_al_ARTS_points_July_2024_negative.png)
 
 ## Instructions for Use
-Select the version from **Releases** (right side panel) and download the zip file to your local machine.
+Use the DOI link: [![DOI](https://zenodo.org/badge/730674203.svg)](https://zenodo.org/doi/10.5281/zenodo.10535025)
+
+Select **Versions** from the right side panel and download the zip file to your local machine.
 
 ## Steps for contributing to the ARTS data set
 **1. Fork this Repository and Clone Your Fork Onto Your Local Machine**
