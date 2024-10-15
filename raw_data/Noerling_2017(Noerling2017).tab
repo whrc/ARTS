@@ -1,0 +1,27 @@
+/* DATA DESCRIPTION:
+Citation:	Noerling, Caroline; Dvornikov, Yury; Morgenstern, Anne; Bartsch, Annett; Khomutov, Artem V; Heim, Birgit (2017): Permafrost disturbance in Central Yamal along the Bovanenkovo railway line and thermokarst lakes, link to files in different formats. PANGAEA, https://doi.org/10.1594/PANGAEA.879619, 
+	Supplement to: Noerling, Caroline (2017): Short-term changes of permafrost degradation triggered by anthropogenic impacts and climatic events in Western Siberia 2010-2013. Master Thesis, University of Potsdam, 74 pp, hdl:10013/epic.51479.d001
+Abstract:	The data set presents results from geospatial analyses of a region in Central Yamal, Western Siberia, which was affected by the construction of the Bovanenkovo railway line and by high Retrogressive Thaw Slumps (RTS) occurrence in consequence of the extremely warm and wet year 2012. A change detection was performed using high resolution optical satellite images from 2010 (GeoEye-1) and 2013 (QuickBird). The preprocessing of the satellite data (orthorectification and atmospheric correction) was performed by and is described in Dvornikov et al., 2016. The degree of disturbance change from 2010 and 2013 around the railway line was classified into three major disturbance levels - low, medium and high, based on the width of disturbance and magnitude of change over the course of three years. A kernel density raster file illustrates RTS distribution. The highest disturbance along the railway can be observed, where the RTS activity is the highest in 2013.
+Related to:	Dvornikov, Yury; Leibman, Marina; Heim, Birgit; Bartsch, Annett; Haas, Antonie; Khomutov, Artem V; Gubarkov, Anatoly; Mikhaylova, Maria; Mullanurov, Damir; Widhalm, Barbara; Skorospekhova, Tatiana; Federova, Irina (2016): Geodatabase and WebGIS project for long-term permafrost monitoring at the Vaskiny Dachi research station, Yamal, Russia. Polarforschung, 85(2), 107-115, https://doi.org/10.2312/polarforschung.85.2.107
+Project(s):	Permafrost Research (AWI_Perma) (URI: https://www.awi.de/en/science/geosciences/permafrost-research.html)
+	Permafrost Research (Periglacial Dynamics) @ AWI (AWI_PerDyn) (URI: https://www.awi.de/en/science/geosciences/permafrost-research.html)
+	Polar Terrestrial Environmental Systems @ AWI (AWI_Envi) (URI: https://www.awi.de/en/science/geosciences/polar-terrestrial-environmental-systems.html)
+Coverage:	LATITUDE: 70.270000 * LONGITUDE: 68.980000
+Event(s):	Vaskiny_Dachi_Area * LATITUDE: 70.270000 * LONGITUDE: 68.980000 * LOCATION: Vaskiny Dachi, Yamal Peninsula, West Siberia, Russian Federation * METHOD/DEVICE: Multiple investigations (MULT)
+Comment:	Shapefiles were digitized on orthorectified and atmospheric corrected satellite images from two different sensors (GeoEye-1 2013, Quickbird 2010), performed and described in Dvornikov et al. (2016).
+	Dataset geoinformation:
+	- Projection: UTM Z42 N, WGS84 elliposid
+	- Pixel size of density disturbance geotiff: 65 m x 65 m
+Parameter(s):	File content (Content) * PI: Morgenstern, Anne (https://orcid.org/0000-0002-6466-7571, Anne.Morgenstern@awi.de, http://www.awi.de/en/about-us/organisation/staff/anne-morgenstern.html)
+	File name (File name) * PI: Morgenstern, Anne (https://orcid.org/0000-0002-6466-7571, Anne.Morgenstern@awi.de, http://www.awi.de/en/about-us/organisation/staff/anne-morgenstern.html) * COMMENT: of zip archive
+	File format (File format) * PI: Morgenstern, Anne (https://orcid.org/0000-0002-6466-7571, Anne.Morgenstern@awi.de, http://www.awi.de/en/about-us/organisation/staff/anne-morgenstern.html)
+	File size [kByte] (File size) * PI: Morgenstern, Anne (https://orcid.org/0000-0002-6466-7571, Anne.Morgenstern@awi.de, http://www.awi.de/en/about-us/organisation/staff/anne-morgenstern.html)
+	Uniform resource locator/link to file (URL file) * PI: Morgenstern, Anne (https://orcid.org/0000-0002-6466-7571, Anne.Morgenstern@awi.de, http://www.awi.de/en/about-us/organisation/staff/anne-morgenstern.html)
+License:	Creative Commons Attribution 3.0 Unported (CC-BY-3.0)
+Size:	20 data points
+*/
+Content	File name	File format	File size [kByte]	URL file
+Kernel density map from thaw slump distribution in ArcMap format	density_disturbances_arcmap	ArcMap	192	https://store.pangaea.de/Publications/Noerling_2017/density_disturbances_arcmap.zip
+Kernel density map from thaw slump distribution in GeoTIFF format	density_disturbances_geotiff	GeoTIFF	236	https://store.pangaea.de/Publications/Noerling_2017/density_disturbances_geotiff.zip
+Disturbance classes of railway line construction divided in 3 different levels displayed as polygons	disturbance_classes_shapefile	Shapefile	101	https://store.pangaea.de/Publications/Noerling_2017/disturbance_classes_shapefile.zip
+Active thaw slumps in 2013 (QuickBird) data from Artem Khomutov, Earth Cryosphere Institute, Tyumen, RU	thawslumps_shapefile	Shapefile	54	https://store.pangaea.de/Publications/Noerling_2017/thawslumps_shapefile.zip
