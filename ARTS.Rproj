@@ -1,4 +1,5 @@
 Version: 1.0
+ProjectId: 61b207cd-e428-459f-bf27-238b4ace63b6
 
 RestoreWorkspace: Default
 SaveWorkspace: Default
@@ -12,6 +13,6 @@ Encoding: UTF-8
 RnwWeave: Sweave
 LaTeX: pdfLaTeX
 
-PythonType: conda
-PythonVersion: 3.11.5
-PythonPath: ~/miniconda3/envs/rts_dataset/bin/python3.11
+PythonType: virtualenv
+PythonVersion: 3.12.7
+PythonPath: ~/.virtualenvs/r-reticulate/Scripts/python.exe
