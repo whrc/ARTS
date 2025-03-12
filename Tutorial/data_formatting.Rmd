@@ -14,7 +14,6 @@ library(reticulate)
 library(sf)
 library(tidyverse)
 source("../src/ARTS/dataformatting.R")
-use_python("C:/Users/mbartkus/AppData/Local/anaconda/envs/rts_dataset/python.exe", required = TRUE)
 ```
 
 ## User-Defined Input
@@ -22,7 +21,7 @@ use_python("C:/Users/mbartkus/AppData/Local/anaconda/envs/rts_dataset/python.exe
 Would you like to run this as a demo with the mock data set? Provide 'TRUE' (mock data demo) or 'FALSE' (actual data processing of a new contribution):
 
 ```{r}
-demo = FALSE
+demo = TRUE
 ```
 
 Before starting, copy your new RTS dataset (can be a shapefile or a geojson) into a directory called "input_data" within the directory in which you would like to work. If you do not change any code in the following code chunk, the default directory will be the directory up one level from the location of this script.
@@ -40,7 +39,7 @@ Provide the location of the directory in which you are working:
 
 ```{r}
 # If you have followed all of the directions as in the README, this should work without edits, but you can always edit it if you did things differently
-base_dir = 'C:/Users/mbartkus/OneDrive - Woodwell Climate Research Center/Documents/ARTS_Repo/ARTS'
+base_dir = '..'
 
 print(paste('Your base directory is', getAbsolutePath(base_dir)))
 ```
@@ -49,8 +48,8 @@ Provide the file name of the data:
 
 ```{r}
 # set this - if demo == TRUE, what this is set to doesn't matter
-your_file = 'TS_all2.shp'  # set this
-dataset_version = 'v.3.0.0' # set this to the most recent version
+your_file = 'new_data.geojson'  # set this
+dataset_version = 'v.1.0.0' # set this to the most recent version
 
 # leave everything else in this chunk alone
 if (demo) {
@@ -115,7 +114,7 @@ Provide the names of any metadata fields in your new file that are not already i
 # new_fields = c('CustomColumn1', 'CustomColumn2')
 
 new_fields = c()
-new_fields_abbreviated = c()
+# new_fields_abbreviated = c()
 ```
 
 Have you already created RTS centroid columns, or would you like them to be created within this script? Provide either TRUE, if the columns do not exist yet, or FALSE, if you have already created them:
@@ -123,7 +122,7 @@ Have you already created RTS centroid columns, or would you like them to be crea
 ```{r}
 # Example: 
 # calculate_centroid = FALSE
-calculate_centroid = TRUE
+calculate_centroid = FALSE
 ```
 
 Would you like your formatted new data to be output in its own file (in which case you will email the file of new features to us to merge with the compiled data set) or appended the compiled dataset (in which case you will commit your updated file to your forked github repository and create a pull request to add the file to the official github repository). Your decision here should mostly be based on your comfort with github. If you have no idea what the second half of that sentence means, please opt for the separate file and email it to us.
