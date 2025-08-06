@@ -1,6 +1,13 @@
 # Version notes
 We adopted a three-part semantic version number convention consisting of three numbers connected by dots. Where the first number indicates the incorporation of a new set of RTS entries from a new data source. The second number indicates batch changes or additions to the entries or metadata without introducing new data source (changing numbers of rows or columns). The last number indicates minor changes or fixes to the existing data or metadata, such as editing an existing metadata or adjusting polygons' vertices to the existing data set (number of rows or columns unchanged). 
 
+2025-08-06
+-v.5.0.0
+    -A new data source "INicu, Norwegian Institute for Cultural Heritage Research" has been added, including 900 new RTS-positive polygons located in the Kanin Peninsula of Russia.
+-v.4.0.0
+    -A new data source "KMaier, ETH Zurich" has been added, including 4561 new RTS-positive polygons across eleven study sites in the Arctic.
+
+
 2025-03-17
 - v.3.1.0
     - A new data source ‘AGLewkowicz, University of Ottawa’ has been added. Including 4579 RTS-positive points.
