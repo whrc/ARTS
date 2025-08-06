@@ -1,0 +1,9 @@
+"0","new_dataset = new_dataset |>"
+"0","  mutate(UID = new_uids,"
+"0","         .after = seed)"
+"1","[1m[33mError[39m in `stopifnot()`:[22m
+[38;5;232m[36mℹ[38;5;232m In argument: `UID = new_uids`.[39m
+[1mCaused by error:[22m
+[38;5;232m[33m![38;5;232m `UID` must be size 4561 or 1, not 3678.[39m
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"

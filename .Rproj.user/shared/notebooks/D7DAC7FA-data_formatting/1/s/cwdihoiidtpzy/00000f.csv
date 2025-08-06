@@ -1,0 +1,3 @@
+"0","ARTS_main_dataset = read_sf(ARTS_main_dataset_filepath) |>"
+"0","  select(all_of(c(!!!required_fields)),"
+"0","         any_of(c(!!!generated_fields, !!!optional_fields)))"

@@ -1,0 +1,8 @@
+"0","# If you have followed all of the directions as in the README, this should work without edits, but you can always edit it if you did things differently"
+"0","base_dir = 'C:/Users/mbartkus/OneDrive - Woodwell Climate Research Center/Documents/ARTS_Repo/ARTS'"
+"0",""
+"0","print(paste('Your base directory is', getAbsolutePath(base_dir)))"
+"1","[1]"
+"1"," ""Your base directory is C:/Users/mbartkus/OneDrive - Woodwell Climate Research Center/Documents/ARTS_Repo/ARTS"""
+"1","
+"

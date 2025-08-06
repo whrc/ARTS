@@ -1,0 +1,3 @@
+"2","Error in check_intersection_info(merged_data, your_rts_dataset_file, base_dir) : 
+  Incomplete information provided about intersecting RTS polygons. Please complete information for rows printed above. This file has also been saved to output/Maier2_incomplete_information.geojson, so that you can determine the problem in your preferred GIS software.
+"
