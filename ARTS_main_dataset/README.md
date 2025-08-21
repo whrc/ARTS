@@ -5,7 +5,6 @@ We adopted a three-part semantic version number convention consisting of three n
 -v.6.0.0
     - A new data source "CDai, University of Florida" has been added, including 2747 new RTS-positive polygons from 4 sites in Canada, 8 sites in Russia, and 1 site in Alaska.
 
-
 2025-08-06
 - v.5.0.0
     - A new data source "INicu, Norwegian Institute for Cultural Heritage Research" has been added, including 900 new RTS-positive polygons located in the Kanin Peninsula of Russia.
