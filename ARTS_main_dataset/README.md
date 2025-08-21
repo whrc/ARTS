@@ -2,7 +2,7 @@
 We adopted a three-part semantic version number convention consisting of three numbers connected by dots. Where the first number indicates the incorporation of a new set of RTS entries from a new data source. The second number indicates batch changes or additions to the entries or metadata without introducing new data source (changing numbers of rows or columns). The last number indicates minor changes or fixes to the existing data or metadata, such as editing an existing metadata or adjusting polygons' vertices to the existing data set (number of rows or columns unchanged). 
 
 2025-08-19
--v.6.0.0
+- v.6.0.0
     - A new data source "CDai, University of Florida" has been added, including 2747 new RTS-positive polygons from 4 sites in Canada, 8 sites in Russia, and 1 site in Alaska.
 
 2025-08-06
