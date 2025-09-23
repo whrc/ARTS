@@ -5,7 +5,7 @@ This repository hosts:
 2. Tutorials (Jupyter Notebook or Rmarkdown) for preparing and formatting contributions to the ARTS data set (ARTS/Tutorial/data_formatting.ipynb or ARTS/Tutorial/data_formatting.Rmd)
 3. Tutorial for splitting the ARTS data set into training, validation, and testing subsets for machine learning models while ensuring no data leakage (ARTS/Tutorial/Automated_Training_Validation_Testing_Data_Split.ipynb)
 
-![image](https://github.com/whrc/ARTS/blob/main/img/Yang_et_al_ARTS_points_July_2024_RTS.png)
+![image](https://github.com/whrc/ARTS/blob/main/img/Yang_et_al_ARTS_points_Sept_2025_RTS_V6.0.0.jpg)
 ![image](https://github.com/whrc/ARTS/blob/main/img/Yang_et_al_ARTS_points_July_2024_negative.png)
 
 ## Instructions for Use
