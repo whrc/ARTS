@@ -42,17 +42,18 @@ def check_intersection_info(df, new_data_file, base_dir, demo):
             in zip(df.Intersections, df.SelfIntersections)
         ]
     df['all_classifications'] = [
-            list(filter(lambda a: a != '', 
-                        list(set(item1.split(',') 
-                                 + item2.split(',') 
-                                 + item3.split(',') 
-                                 + item4.split(',') 
+            list(filter(lambda a: a != '',
+                        list(set(item1.split(',')
+                                 + item2.split(',')
+                                 + item3.split(',')
+                                 + item4.split(',')
                                  + item5.split(',')
                                  + item6.split(',')
                                  + item7.split(',')
-                                 + item8.split(','))))) 
-            for item1, item2, item3, item4, item5, item6, item7, item8
-            in zip(df.RepeatRTS, df.RepeatNegative, df.StabilizedRTS, df.NewRTS, df.MergedRTS, df.SplitRTS, df.AccidentalOverlap, df.UnknownRelationship)
+                                 + item8.split(',')
+                                 + item9.split(',')))))
+            for item1, item2, item3, item4, item5, item6, item7, item8, item9
+            in zip(df.RepeatRTS, df.RepeatNegative, df.StabilizedRTS, df.NewRTS, df.MergedRTS, df.SplitRTS, df.AccidentalOverlap, df.FalseNegative, df.UnknownRelationship)
         ]
     
     df['unclassified_intersections'] = [
@@ -69,7 +70,7 @@ def check_intersection_info(df, new_data_file, base_dir, demo):
         if not df['int_info_complete'].all():
             incomplete_info = df[~df['int_info_complete']]
             incomplete_info.to_file(base_dir / 'output' / (
-                str(your_rts_dataset_file).split('.')[0] + "_incomplete_information.geojson"
+                str(new_data_file).split('.')[0] + "_incomplete_information.geojson"
                 ))
             print(incomplete_info)
             raise Exception(
@@ -772,7 +773,7 @@ def merge_data(new_data, edited_file):
         
         for column in ['Intersections', 'SelfIntersections', 'RepeatRTS', 'RepeatNegative', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'FalseNegative', 'UnknownRelationship'] :
             overlapping_data[column] = overlapping_data[column].astype(str)
-            overlapping_data[column].loc[overlapping_data[column] == 'nan'] = ''
+            overlapping_data.loc[overlapping_data[column] == 'nan', column] = ''
             overlapping_data = overlapping_data.replace(to_replace = 'None', value = '')
 
         new_data = pd.merge(new_data,
@@ -782,7 +783,7 @@ def merge_data(new_data, edited_file):
 
         for column in ['RepeatRTS', 'RepeatNegative', 'MergedRTS', 'SplitRTS', 'NewRTS', 'StabilizedRTS', 'AccidentalOverlap', 'FalseNegative', 'UnknownRelationship'] :
             new_data[column] = new_data[column].astype(str)
-            new_data[column].loc[new_data[column] == 'nan'] = ''
+            new_data.loc[new_data[column] == 'nan', column] = ''
         
         not_repeat = new_data.RepeatRTS == ''
 
@@ -851,9 +852,9 @@ def remove_old_false_negatives(main_data, new_data) :
     '''
     
     uids = new_data[(new_data.TrainClass == 'Positive') & (new_data.FalseNegative.str.len() > 0)].FalseNegative
-    
-    main_data = main_data[(main_data.UID.isin(uids)) & (main_data.TrainClass == 'Negative')]
-    
+
+    main_data = main_data[~((main_data.UID.isin(uids)) & (main_data.TrainClass == 'Negative'))]
+
     return main_data
 
 
